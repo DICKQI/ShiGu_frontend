@@ -1,0 +1,104 @@
+/* Element Plus 主题定制 - 香槟镭射风格 */
+
+/* 主色 */
+:root {
+  --el-color-primary: #D4AF37;
+  --el-color-primary-light-3: #EACDA3;
+  --el-color-primary-light-5: #F0D9B8;
+  --el-color-primary-light-7: #F5E6CC;
+  --el-color-primary-light-8: #F8EED9;
+  --el-color-primary-light-9: #FBF5E6;
+  --el-color-primary-dark-2: #B8941F;
+}
+
+/* 成功色 */
+:root {
+  --el-color-success: #67C23A;
+}
+
+/* 警告色 */
+:root {
+  --el-color-warning: #E6A23C;
+}
+
+/* 危险色 */
+:root {
+  --el-color-danger: #F56C6C;
+}
+
+/* 信息色 */
+:root {
+  --el-color-info: #909399;
+}
+
+/* 按钮样式 */
+.el-button--primary {
+  background-color: var(--accent-purple);
+  border-color: var(--accent-purple);
+}
+
+.el-button--primary:hover {
+  background-color: var(--accent-purple-dark);
+  border-color: var(--accent-purple-dark);
+}
+
+.el-button--primary:focus {
+  background-color: var(--accent-purple-dark);
+  border-color: var(--accent-purple-dark);
+}
+
+/* 输入框焦点颜色 */
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--primary-gold) inset;
+}
+
+.el-select .el-input.is-focus .el-input__wrapper {
+  box-shadow: 0 0 0 1px var(--primary-gold) inset;
+}
+
+/* 卡片边框 */
+.el-card {
+  border: 1px solid var(--border-color);
+}
+
+.el-card__header {
+  border-bottom: 1px solid var(--border-color);
+  color: var(--primary-gold);
+  font-weight: bold;
+}
+
+/* 菜单激活色 */
+.el-menu-item.is-active {
+  color: var(--primary-gold);
+}
+
+/* 标签页激活色 */
+.el-tabs__active-bar {
+  background-color: var(--primary-gold);
+}
+
+.el-tabs__item.is-active {
+  color: var(--primary-gold);
+}
+
+/* 分页激活色 */
+.el-pagination.is-background .el-pager li.is-active {
+  background-color: var(--primary-gold);
+  color: white;
+}
+
+/* 抽屉标题 */
+.el-drawer__title {
+  color: var(--primary-gold);
+  font-weight: bold;
+}
+
+/* 树节点选中 */
+.el-tree-node__content:hover {
+  background-color: var(--secondary-gray);
+}
+
+.el-tree-node.is-current > .el-tree-node__content {
+  background-color: rgba(212, 175, 55, 0.1);
+}
+

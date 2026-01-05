@@ -1,0 +1,45 @@
+/* 拾谷 ShiGu - 香槟镭射主题变量 */
+:root {
+  /* 主色 - 香槟金 */
+  --primary-gold: #D4AF37;
+  --primary-gold-light: #EACDA3;
+  --primary-gold-dark: #B8941F;
+  
+  /* 辅助色 - 明亮灰 */
+  --secondary-gray: #F5F5F7;
+  --secondary-gray-dark: #E5E5E7;
+  
+  /* 点缀色 - 镭射紫 */
+  --accent-purple: #A29BFE;
+  --accent-purple-light: #C4B5FD;
+  --accent-purple-dark: #9980FA;
+  
+  /* 背景色 */
+  --bg-white: #FFFFFF;
+  --bg-gray: var(--secondary-gray);
+  
+  /* 文字颜色 */
+  --text-dark: #333333;
+  --text-light: #888888;
+  --text-lighter: #CCCCCC;
+  
+  /* 边框 */
+  --border-color: rgba(212, 175, 55, 0.3);
+  --border-color-active: var(--primary-gold);
+  
+  /* 圆角 */
+  --card-radius: 20px;
+  --button-radius: 8px;
+  
+  /* 阴影 */
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 15px rgba(212, 175, 55, 0.15);
+  --shadow-lg: 0 8px 20px rgba(212, 175, 55, 0.25);
+  --shadow-purple: 0 4px 15px rgba(162, 155, 254, 0.5);
+  
+  /* 过渡动画 */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
