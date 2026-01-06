@@ -6,7 +6,8 @@
         <div class="brand" @click="goHome">
           <span class="brand-text">✦ 拾谷 ShiGu</span>
         </div>
-        <div class="nav-menu">
+        <!-- 普通宽度下：直接展示完整菜单 -->
+        <div class="nav-menu" v-if="!isMobile">
           <el-menu
             :default-active="activeMenu"
             mode="horizontal"
@@ -35,11 +36,39 @@
             </el-menu-item>
           </el-menu>
         </div>
-        <div class="nav-actions">
-          <el-button type="primary" @click="goToAdd">
-            <el-icon><Plus /></el-icon>
-            拾取新谷子
-          </el-button>
+
+        <!-- 窄屏下：折叠为“更多 ...”下拉菜单 -->
+        <div class="nav-menu nav-menu-compact" v-else>
+          <el-dropdown trigger="click">
+            <span class="more-trigger">
+              <el-icon><MoreFilled /></el-icon>
+              <span class="more-text">更多</span>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="handleMenuSelect('/showcase')">
+                  <el-icon><Grid /></el-icon>
+                  <span>云展柜</span>
+                </el-dropdown-item>
+                <el-dropdown-item @click="handleMenuSelect('/location')">
+                  <el-icon><FolderOpened /></el-icon>
+                  <span>位置管理</span>
+                </el-dropdown-item>
+                <el-dropdown-item @click="handleMenuSelect('/ip')">
+                  <el-icon><Collection /></el-icon>
+                  <span>IP作品管理</span>
+                </el-dropdown-item>
+                <el-dropdown-item @click="handleMenuSelect('/character')">
+                  <el-icon><User /></el-icon>
+                  <span>角色管理</span>
+                </el-dropdown-item>
+                <el-dropdown-item @click="handleMenuSelect('/category')">
+                  <el-icon><Box /></el-icon>
+                  <span>品类管理</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </div>
     </nav>
@@ -49,8 +78,8 @@
       <router-view />
     </main>
 
-    <!-- 悬浮按钮（移动端） -->
-    <div class="fab-btn" @click="goToAdd" v-if="isMobile">
+    <!-- 悬浮按钮（全端） -->
+    <div class="fab-btn" @click="goToAdd">
       <el-icon><Plus /></el-icon>
     </div>
   </div>
@@ -59,7 +88,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Grid, FolderOpened, Plus, Collection, User, Box } from '@element-plus/icons-vue'
+import { Grid, FolderOpened, Plus, Collection, User, Box, MoreFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -185,7 +214,7 @@ onUnmounted(() => {
   right: 30px;
   width: 60px;
   height: 60px;
-  background: linear-gradient(135deg, var(--accent-purple), var(--accent-purple-dark));
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -212,12 +241,32 @@ onUnmounted(() => {
     font-size: 20px;
   }
 
-  .nav-menu {
-    display: none;
+  .nav-menu-compact {
+    justify-content: flex-end;
   }
 
-  .nav-actions {
-    display: none;
+  .more-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    color: var(--text-dark);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    background-color: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    transition: all var(--transition-fast);
+  }
+
+  .more-trigger:hover {
+    color: var(--primary-gold);
+    border-color: rgba(212, 175, 55, 0.4);
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
+  }
+
+  .more-text {
+    font-size: 14px;
   }
 }
 </style>

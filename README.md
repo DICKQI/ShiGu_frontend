@@ -43,11 +43,14 @@ src/
 - 云展柜 `/showcase`：300ms 防抖搜索，多维筛选（IP/角色/品类/状态/位置），网格/瀑布流展示，详情 Drawer，分页。
 - 位置管理 `/location`：树形导航，位置详情、照片、谷子列表，增删改节点。
 - 资产录入 `/goods/new` 与 `/goods/:id/edit`：表单校验，IP-角色联动，图片裁剪上传（需配置上传接口），幂等提示。
-- 元数据管理：IP、角色、品类列表/搜索/增删改，角色头像上传。
+- 元数据管理：IP、角色、品类列表/搜索/增删改，角色头像上传；对应路由：
+  - IP 管理：`/ip`
+  - 角色管理：`/character`
+  - 品类管理：`/category`
 - 设计落地：香槟金主题、镭射动效、圆角规范（卡片 20px，按钮 8px），移动端适配。
 
 ## 5. 待办与风险提示
-- **真实数据接入**：IP/角色/品类当前含模拟数据，需接通后端 API 后替换。
+- **真实数据接入**：前端已按照 `/api/ips/`、`/api/characters/`、`/api/categories/` 等接口对接，需确保后端 `ShiGu_backend` 服务按约定启动并保持稳定；如有字段变更，请同步更新 `src/api/*` 与 `src/api/types.ts`。
 - **图片上传**：需配置实际上传接口（默认 `/api/upload`），确认鉴权方案。
 - **认证与权限**：如需多用户，需补登录/Token/权限控制。
 - **数据统计**：资产价值、占比、时间分布等图表未实现。
@@ -88,8 +91,8 @@ src/
 - `QUICKSTART.md`：更详细的启动与常见问题
 - `PROJECT_SUMMARY.md`：阶段性总结与建议
 
-## 11. 后端代码
-https://github.com/DICKQI/ShiGu_backend
+## 12. 后端代码
+`ShiGu_backend` 仓库（Django REST 后端，包含 `api.md` 接口说明）：`https://github.com/DICKQI/ShiGu_backend`
 
 ## 13. License
 MIT

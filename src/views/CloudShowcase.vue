@@ -32,9 +32,11 @@
           @context-menu="handleCardContextMenu"
         />
       </div>
+    </div>
 
-      <!-- 分页 -->
-      <div v-if="guziStore.pagination.count > 0" class="pagination-container">
+    <!-- 分页 - 悬浮固定在底部 -->
+    <div v-if="guziStore.pagination.count > 0" class="pagination-container">
+      <div class="pagination-wrapper">
         <el-pagination
           v-model:current-page="currentPage"
           :page-size="20"
@@ -165,8 +167,10 @@ onMounted(() => {
 <style scoped>
 .cloud-showcase {
   padding: 20px;
+  padding-bottom: 100px; /* 为固定分页器预留空间 */
   max-width: 1400px;
   margin: 0 auto;
+  min-height: calc(100vh - 64px); /* 减去导航栏高度 */
 }
 
 .search-section {
@@ -188,7 +192,7 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 20px;
-  margin-bottom: 40px;
+  margin-bottom: 20px;
 }
 
 @media (max-width: 768px) {
@@ -196,13 +200,55 @@ onMounted(() => {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 12px;
   }
+  
+  .cloud-showcase {
+    padding-bottom: 120px; /* 移动端预留更多空间 */
+  }
 }
 
+/* 悬浮分页器容器 - 固定在底部 */
 .pagination-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   justify-content: center;
-  margin-top: 40px;
-  padding-bottom: 40px;
+  align-items: center;
+  padding: 12px 20px;
+  z-index: 100;
+  pointer-events: none; /* 让容器本身不拦截点击 */
+}
+
+/* 悬浮卡片包装器 */
+.pagination-wrapper {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 8px 12px;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1), 0 -2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  pointer-events: auto; /* 恢复分页器本身的点击事件 */
+  transition: all var(--transition-normal);
+  display: inline-flex; /* 让宽度根据内容自适应 */
+}
+
+.pagination-wrapper:hover {
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.12), 0 -4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .pagination-container {
+    padding: 10px 16px;
+  }
+  
+  .pagination-wrapper {
+    padding: 6px 10px;
+    border-radius: 12px;
+    /* 移除 width 设置，让分页器根据内容自适应宽度 */
+  }
 }
 
 .context-menu-overlay {
@@ -248,6 +294,27 @@ onMounted(() => {
   --el-pagination-button-color: var(--text-dark);
   --el-pagination-hover-color: var(--primary-gold);
   --el-pagination-active-color: var(--primary-gold);
+}
+
+/* 让分页器更紧凑 */
+:deep(.el-pagination .el-pager li),
+:deep(.el-pagination .btn-prev),
+:deep(.el-pagination .btn-next) {
+  min-width: 32px;
+  height: 32px;
+  line-height: 32px;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  :deep(.el-pagination .el-pager li),
+  :deep(.el-pagination .btn-prev),
+  :deep(.el-pagination .btn-next) {
+    min-width: 28px;
+    height: 28px;
+    line-height: 28px;
+    font-size: 13px;
+  }
 }
 </style>
 

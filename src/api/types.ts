@@ -25,12 +25,16 @@ export interface IP {
   keywords?: IPKeyword[]
 }
 
+// 角色性别类型
+export type CharacterGender = 'male' | 'female' | 'other'
+
 // 角色信息
 export interface Character {
   id: number
   name: string
   ip: IP
   avatar?: string | null
+  gender: CharacterGender
 }
 
 // 品类信息

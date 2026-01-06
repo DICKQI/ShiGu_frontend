@@ -46,12 +46,19 @@
         </el-button>
       </div>
 
-      <!-- 表格 -->
+      <!-- PC端表格 -->
       <div v-loading="loading" class="table-container">
-        <el-table :data="characterList" stripe style="width: 100%">
+        <el-table :data="characterList" stripe style="width: 100%" class="desktop-table">
           <el-table-column prop="id" label="ID" width="80" />
           <el-table-column prop="name" label="角色名称" min-width="150" />
           <el-table-column prop="ip.name" label="所属IP" min-width="200" />
+          <el-table-column label="性别" width="100">
+            <template #default="{ row }">
+              <el-tag :type="getGenderTagType(row.gender)">
+                {{ getGenderLabel(row.gender) }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="头像" width="100">
             <template #default="{ row }">
               <el-avatar
@@ -77,6 +84,54 @@
           </el-table-column>
         </el-table>
 
+        <!-- 移动端卡片列表 -->
+        <div class="mobile-card-list">
+          <div
+            v-for="item in characterList"
+            :key="item.id"
+            class="mobile-card"
+          >
+            <div class="card-header-section">
+              <div class="card-title-row">
+                <el-avatar
+                  v-if="item.avatar"
+                  :src="item.avatar"
+                  :size="50"
+                  shape="square"
+                  class="card-avatar"
+                />
+                <div class="card-title-content">
+                  <div class="card-title-row">
+                    <span class="card-id">#{{ item.id }}</span>
+                    <h3 class="card-name">{{ item.name }}</h3>
+                  </div>
+                  <div class="card-subtitle">
+                    <el-tag :type="getGenderTagType(item.gender)" size="small">
+                      {{ getGenderLabel(item.gender) }}
+                    </el-tag>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card-content-section">
+              <div class="card-field">
+                <label class="field-label">所属IP</label>
+                <div class="field-value">{{ item.ip.name }}</div>
+              </div>
+            </div>
+            <div class="card-actions">
+              <el-button type="primary" size="small" @click="handleEdit(item)">
+                <el-icon><Edit /></el-icon>
+                编辑
+              </el-button>
+              <el-button type="danger" size="small" @click="handleDelete(item)">
+                <el-icon><Delete /></el-icon>
+                删除
+              </el-button>
+            </div>
+          </div>
+        </div>
+
         <el-empty v-if="!loading && characterList.length === 0" description="暂无数据" />
       </div>
     </el-card>
@@ -88,7 +143,12 @@
       width="500px"
       @close="handleDialogClose"
     >
-      <el-form :model="formData" :rules="formRules" ref="formRef" label-width="100px">
+      <el-form
+        :model="formData"
+        :rules="formRules"
+        ref="formRef"
+        label-position="top"
+      >
         <el-form-item label="角色名称" prop="name">
           <el-input
             v-model="formData.name"
@@ -111,6 +171,13 @@
               :value="ip.id"
             />
           </el-select>
+        </el-form-item>
+        <el-form-item label="性别" prop="gender">
+          <el-radio-group v-model="formData.gender">
+            <el-radio value="female">女</el-radio>
+            <el-radio value="male">男</el-radio>
+            <el-radio value="other">其他</el-radio>
+          </el-radio-group>
         </el-form-item>
         <el-form-item label="头像">
           <div class="avatar-upload-section">
@@ -181,7 +248,7 @@ import {
   updateCharacter,
   deleteCharacter,
 } from '@/api/metadata'
-import type { IP, Character } from '@/api/types'
+import type { IP, Character, CharacterGender } from '@/api/types'
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -198,6 +265,7 @@ const formData = ref({
   name: '',
   ip_id: null as number | null,
   avatar: null as string | null,
+  gender: 'female' as CharacterGender,
 })
 
 // 头像上传相关
@@ -216,6 +284,26 @@ const formRules: FormRules = {
 }
 
 const dialogTitle = computed(() => (isEdit.value ? '编辑角色' : '新增角色'))
+
+// 获取性别标签文本
+const getGenderLabel = (gender: CharacterGender): string => {
+  const genderMap: Record<CharacterGender, string> = {
+    male: '男',
+    female: '女',
+    other: '其他',
+  }
+  return genderMap[gender] || '未知'
+}
+
+// 获取性别标签类型（用于 el-tag 的颜色）
+const getGenderTagType = (gender: CharacterGender): string => {
+  const typeMap: Record<CharacterGender, string> = {
+    male: 'primary',
+    female: 'danger',
+    other: 'info',
+  }
+  return typeMap[gender] || 'info'
+}
 
 // 加载IP列表
 const fetchIPList = async () => {
@@ -265,6 +353,7 @@ const handleAdd = () => {
     name: '',
     ip_id: null,
     avatar: null,
+    gender: 'female',
   }
   avatarInputType.value = 'upload'
   avatarFileList.value = []
@@ -280,6 +369,7 @@ const handleEdit = (row: Character) => {
     name: row.name,
     ip_id: row.ip.id,
     avatar: row.avatar || null,
+    gender: row.gender || 'female',
   }
   
   // 如果有头像URL，默认使用URL输入模式
@@ -368,6 +458,7 @@ const handleSubmit = async () => {
         const formDataObj = new FormData()
         formDataObj.append('name', formData.value.name)
         formDataObj.append('ip_id', formData.value.ip_id!.toString())
+        formDataObj.append('gender', formData.value.gender)
         formDataObj.append('avatar', firstFile.raw)
         
         if (isEdit.value && editingId.value) {
@@ -383,6 +474,7 @@ const handleSubmit = async () => {
           name: formData.value.name,
           ip_id: formData.value.ip_id!,
           avatar: formData.value.avatar || null,
+          gender: formData.value.gender,
         }
         
         if (isEdit.value && editingId.value) {
@@ -411,6 +503,7 @@ const handleDialogClose = () => {
     name: '',
     ip_id: null,
     avatar: null,
+    gender: 'female',
   }
   avatarInputType.value = 'upload'
   avatarFileList.value = []
@@ -463,6 +556,157 @@ onMounted(async () => {
   padding: 4px 8px;
 }
 
+/* 移动端卡片布局 */
+.mobile-card-list {
+  display: none;
+}
+
+.mobile-card {
+  background: #fff;
+  border: 1px solid var(--border-color, #dcdfe6);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.mobile-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card-header-section {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color, #e4e7ed);
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-avatar {
+  flex-shrink: 0;
+}
+
+.card-title-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-title-content .card-title-row {
+  margin-bottom: 6px;
+}
+
+.card-id {
+  font-size: 12px;
+  color: var(--text-light);
+  background: var(--bg-light, #f5f7fa);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.card-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-subtitle {
+  margin-top: 4px;
+}
+
+.card-content-section {
+  margin-bottom: 12px;
+}
+
+.card-field {
+  margin-bottom: 12px;
+}
+
+.card-field:last-child {
+  margin-bottom: 0;
+}
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-light);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.field-value {
+  font-size: 14px;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color, #e4e7ed);
+}
+
+.card-actions .el-button {
+  flex: 1;
+}
+
+/* 响应式：移动端显示卡片，PC端显示表格 */
+@media (max-width: 768px) {
+  .desktop-table {
+    display: none !important;
+  }
+
+  .mobile-card-list {
+    display: block;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+  }
+
+  .filter-bar .el-select,
+  .filter-bar .el-input {
+    width: 100% !important;
+  }
+
+  .filter-bar .el-button {
+    width: 100%;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .card-header .el-button {
+    width: 100%;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-card-list {
+    display: none !important;
+  }
+
+  .desktop-table {
+    display: table !important;
+  }
+}
+
 .avatar-upload-section {
   width: 100%;
 }
@@ -507,6 +751,21 @@ onMounted(async () => {
 :deep(.el-upload-list--picture-card .el-upload-list__item) {
   width: 100px;
   height: 100px;
+}
+
+/* 弹窗 & 表单移动端适配 */
+@media (max-width: 768px) {
+  :deep(.el-dialog) {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  :deep(.el-dialog__body) {
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
 }
 </style>
 

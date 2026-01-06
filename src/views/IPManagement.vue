@@ -31,9 +31,9 @@
         </el-button>
       </div>
 
-      <!-- 表格 -->
+      <!-- PC端表格 -->
       <div v-loading="loading" class="table-container">
-        <el-table :data="ipList" stripe style="width: 100%">
+        <el-table :data="ipList" stripe style="width: 100%" class="desktop-table">
           <el-table-column prop="id" label="ID" width="80" />
           <el-table-column prop="name" label="作品名称" min-width="200" />
           <el-table-column label="关键词" min-width="250">
@@ -65,6 +65,48 @@
           </el-table-column>
         </el-table>
 
+        <!-- 移动端卡片列表 -->
+        <div class="mobile-card-list">
+          <div
+            v-for="item in ipList"
+            :key="item.id"
+            class="mobile-card"
+          >
+            <div class="card-header-section">
+              <div class="card-title-row">
+                <span class="card-id">#{{ item.id }}</span>
+                <h3 class="card-name">{{ item.name }}</h3>
+              </div>
+            </div>
+            <div class="card-content-section">
+              <div class="card-field">
+                <label class="field-label">关键词</label>
+                <div class="keywords-display">
+                  <el-tag
+                    v-for="keyword in item.keywords || []"
+                    :key="keyword.id"
+                    size="small"
+                    class="keyword-tag"
+                  >
+                    {{ keyword.value }}
+                  </el-tag>
+                  <span v-if="!item.keywords || item.keywords.length === 0" class="text-gray">暂无</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-actions">
+              <el-button type="primary" size="small" @click="handleEdit(item)">
+                <el-icon><Edit /></el-icon>
+                编辑
+              </el-button>
+              <el-button type="danger" size="small" @click="handleDelete(item)">
+                <el-icon><Delete /></el-icon>
+                删除
+              </el-button>
+            </div>
+          </div>
+        </div>
+
         <el-empty v-if="!loading && ipList.length === 0" description="暂无数据" />
       </div>
     </el-card>
@@ -76,7 +118,12 @@
       width="600px"
       @close="handleDialogClose"
     >
-      <el-form :model="formData" :rules="formRules" ref="formRef" label-width="100px">
+      <el-form
+        :model="formData"
+        :rules="formRules"
+        ref="formRef"
+        label-position="top"
+      >
         <el-form-item label="作品名称" prop="name">
           <el-input
             v-model="formData.name"
@@ -366,6 +413,129 @@ onMounted(() => {
   font-size: 12px;
 }
 
+/* 移动端卡片布局 */
+.mobile-card-list {
+  display: none;
+}
+
+.mobile-card {
+  background: #fff;
+  border: 1px solid var(--border-color, #dcdfe6);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.mobile-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card-header-section {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color, #e4e7ed);
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-id {
+  font-size: 12px;
+  color: var(--text-light);
+  background: var(--bg-light, #f5f7fa);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.card-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  flex: 1;
+}
+
+.card-content-section {
+  margin-bottom: 12px;
+}
+
+.card-field {
+  margin-bottom: 12px;
+}
+
+.card-field:last-child {
+  margin-bottom: 0;
+}
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-light);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color, #e4e7ed);
+}
+
+.card-actions .el-button {
+  flex: 1;
+}
+
+/* 响应式：移动端显示卡片，PC端显示表格 */
+@media (max-width: 768px) {
+  .desktop-table {
+    display: none !important;
+  }
+
+  .mobile-card-list {
+    display: block;
+  }
+
+  .search-bar {
+    flex-direction: column;
+  }
+
+  .search-bar .el-input {
+    width: 100% !important;
+  }
+
+  .search-bar .el-button {
+    width: 100%;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .card-header .el-button {
+    width: 100%;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-card-list {
+    display: none !important;
+  }
+
+  .desktop-table {
+    display: table !important;
+  }
+}
+
 .keywords-manager {
   width: 100%;
 }
@@ -389,6 +559,21 @@ onMounted(() => {
   width: 100%;
   text-align: center;
   padding: 8px 0;
+}
+
+/* 弹窗 & 表单移动端适配 */
+@media (max-width: 768px) {
+  :deep(.el-dialog) {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  :deep(.el-dialog__body) {
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
 }
 </style>
 

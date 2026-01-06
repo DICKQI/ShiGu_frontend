@@ -51,17 +51,17 @@ export function getCharacterDetail(id: number) {
 }
 
 // 创建角色
-export function createCharacter(data: { name: string; ip_id: number; avatar?: string | null } | FormData) {
+export function createCharacter(data: { name: string; ip_id: number; avatar?: string | null; gender?: 'male' | 'female' | 'other' } | FormData) {
   return request.post<Character>('/api/characters/', data)
 }
 
 // 更新角色
-export function updateCharacter(id: number, data: { name: string; ip_id: number; avatar?: string | null } | FormData) {
+export function updateCharacter(id: number, data: { name: string; ip_id: number; avatar?: string | null; gender?: 'male' | 'female' | 'other' } | FormData) {
   return request.put<Character>(`/api/characters/${id}/`, data)
 }
 
 // 部分更新角色
-export function patchCharacter(id: number, data: Partial<{ name: string; ip_id: number; avatar?: string | null }>) {
+export function patchCharacter(id: number, data: Partial<{ name: string; ip_id: number; avatar?: string | null; gender?: 'male' | 'female' | 'other' }>) {
   return request.patch<Character>(`/api/characters/${id}/`, data)
 }
 

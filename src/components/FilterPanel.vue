@@ -1,16 +1,48 @@
 <template>
   <div class="filter-panel">
-    <el-card class="filter-card">
+    <el-card
+      class="filter-card"
+      :class="{ 'filter-card--collapsed': collapsed }"
+      :body-style="cardBodyStyle"
+    >
       <template #header>
         <div class="filter-header">
-          <span>筛选条件</span>
-          <el-button text @click="handleReset">重置</el-button>
+          <span>筛选谷子</span>
+          <div class="filter-actions">
+            <!-- 重置按钮改为图标形式 -->
+            <el-button
+              text
+              class="icon-btn reset-btn"
+              @click="handleReset"
+              title="重置筛选"
+            >
+              <el-icon>
+                <RefreshLeft />
+              </el-icon>
+            </el-button>
+            <el-button
+              text
+              class="toggle-btn"
+              @click="toggleCollapsed"
+              :title="collapsed ? '展开筛选' : '收起筛选'"
+            >
+              <el-icon :class="['toggle-icon', { expanded: !collapsed }]">
+                <ArrowDown />
+              </el-icon>
+            </el-button>
+          </div>
         </div>
       </template>
 
-      <div class="filter-content">
-        <!-- IP筛选 -->
-        <div class="filter-item">
+      <!-- 展开/收起动画 -->
+      <transition name="filter-collapse">
+        <div
+          v-show="!collapsed"
+          class="filter-collapse-wrapper"
+        >
+          <div class="filter-content">
+            <!-- IP筛选 -->
+            <div class="filter-item">
           <label>IP作品</label>
           <el-select
             v-model="localFilters.ip"
@@ -28,8 +60,8 @@
           </el-select>
         </div>
 
-        <!-- 角色筛选（联动） -->
-        <div class="filter-item">
+            <!-- 角色筛选（联动） -->
+            <div class="filter-item">
           <label>角色</label>
           <el-select
             v-model="localFilters.character"
@@ -48,8 +80,8 @@
           </el-select>
         </div>
 
-        <!-- 品类筛选 -->
-        <div class="filter-item">
+            <!-- 品类筛选 -->
+            <div class="filter-item">
           <label>品类</label>
           <el-select
             v-model="localFilters.category"
@@ -67,8 +99,8 @@
           </el-select>
         </div>
 
-        <!-- 状态筛选（支持多选） -->
-        <div class="filter-item">
+            <!-- 状态筛选（支持多选） -->
+            <div class="filter-item">
           <label>状态</label>
           <el-checkbox-group
             v-model="selectedStatuses"
@@ -81,27 +113,30 @@
           </el-checkbox-group>
         </div>
 
-        <!-- 位置筛选 -->
-        <div class="filter-item">
-          <label>位置</label>
-          <el-tree-select
-            v-model="localFilters.location"
-            :data="locationTreeData"
-            placeholder="选择位置"
-            clearable
-            @change="handleFilterChange"
-            style="width: 100%"
-            :props="{ label: 'label', value: 'id' }"
-          />
+            <!-- 位置筛选 -->
+            <div class="filter-item">
+              <label>位置</label>
+              <el-tree-select
+                v-model="localFilters.location"
+                :data="locationTreeData"
+                placeholder="选择位置"
+                clearable
+                @change="handleFilterChange"
+                style="width: 100%"
+                :props="{ label: 'label', value: 'id' }"
+              />
+            </div>
+          </div>
         </div>
-      </div>
+      </transition>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { ArrowDown, RefreshLeft } from '@element-plus/icons-vue'
 import { useGuziStore } from '@/stores/guzi'
 import { useLocationStore } from '@/stores/location'
 import { getIPList, getCharacterList, getCategoryList } from '@/api/metadata'
@@ -114,6 +149,17 @@ const categoryOptions = ref<Category[]>([])
 
 const guziStore = useGuziStore()
 const locationStore = useLocationStore()
+
+// 设备类型 & 折叠状态（PC 默认展开，移动端默认收起）
+const isMobile = ref(false)
+const collapsed = ref(false)
+const cardBodyStyle = computed(() =>
+  collapsed.value ? { padding: '0' } : {}
+)
+
+const toggleCollapsed = () => {
+  collapsed.value = !collapsed.value
+}
 
 const localFilters = ref<GoodsSearchParams>({
   ip: undefined,
@@ -209,6 +255,10 @@ watch(
 )
 
 onMounted(async () => {
+  // 根据当前窗口宽度决定默认展开/收起
+  isMobile.value = window.innerWidth < 768
+  collapsed.value = isMobile.value
+
   // 加载基础数据
   try {
     const [ipList, characterList, categoryList] = await Promise.all([
@@ -225,6 +275,7 @@ onMounted(async () => {
 
   locationStore.fetchNodes()
 })
+onUnmounted(() => {})
 </script>
 
 <style scoped>
@@ -234,6 +285,11 @@ onMounted(async () => {
 
 .filter-card {
   border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.filter-card--collapsed :deep(.el-card__header) {
+  border-bottom: none;
 }
 
 .filter-header {
@@ -244,10 +300,59 @@ onMounted(async () => {
   color: var(--primary-gold);
 }
 
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-btn {
+  padding: 4px;
+  min-height: auto;
+}
+
+.toggle-btn {
+  padding: 4px;
+  min-height: auto;
+}
+
+.toggle-icon {
+  transition: transform var(--transition-fast);
+}
+
+.toggle-icon.expanded {
+  transform: rotate(180deg);
+}
+
+/* 展开/收起外层，用于高度动画 */
+.filter-collapse-wrapper {
+  overflow: hidden;
+}
+
 .filter-content {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
+}
+
+/* 展开/收起动画：使用 max-height + 透明度，模拟「缓慢缩小」 */
+.filter-collapse-enter-active,
+.filter-collapse-leave-active {
+  transition:
+    max-height 0.3s ease,
+    opacity 0.25s ease;
+}
+
+.filter-collapse-enter-from,
+.filter-collapse-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.filter-collapse-enter-to,
+.filter-collapse-leave-from {
+  max-height: 800px; /* 足够覆盖筛选内容高度 */
+  opacity: 1;
 }
 
 .filter-item {
@@ -266,6 +371,17 @@ onMounted(async () => {
   display: flex;
   flex-wrap: nowrap;
   gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .filter-panel {
+    margin-bottom: 12px;
+  }
+
+  .filter-content {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 }
 
 /* 状态按钮样式，保持与之前单选按钮风格一致 */
