@@ -73,8 +73,22 @@
 
             <!-- 该位置下的谷子列表 -->
             <div class="guzi-list-section">
-              <h3 class="section-title">该位置的谷子</h3>
-              <div v-if="locationGuziList.length === 0" class="empty-guzi">
+              <div class="section-header">
+                <h3 class="section-title">
+                  该位置的谷子
+                  <span v-if="selectedNode" class="debug-info">(节点ID: {{ selectedNode.id }}, 商品数: {{ locationGuziList.length }})</span>
+                </h3>
+                <el-switch
+                  v-model="includeChildren"
+                  active-text="包含子节点"
+                  inactive-text="仅当前节点"
+                  @change="handleIncludeChildrenChange"
+                />
+              </div>
+              <div v-if="goodsLoading" class="loading-guzi">
+                <el-skeleton :rows="3" animated />
+              </div>
+              <div v-else-if="locationGuziList.length === 0" class="empty-guzi">
                 <el-empty description="该位置暂无谷子" :image-size="100" />
               </div>
               <div v-else class="guzi-grid">
@@ -97,31 +111,64 @@
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="500px"
+      width="600px"
       @close="handleDialogClose"
     >
-      <el-form :model="formData" label-width="80px">
-        <el-form-item label="名称" required>
-          <el-input v-model="formData.name" placeholder="请输入位置名称" />
-        </el-form-item>
-        <el-form-item label="父节点">
-          <el-tree-select
-            v-model="formData.parent"
-            :data="locationStore.treeData"
-            placeholder="选择父节点（留空为根节点）"
-            clearable
-            :props="{ label: 'label', value: 'id' }"
+      <el-form :model="formData" label-width="100px" label-position="left">
+        <el-form-item label="位置名称" required>
+          <el-input 
+            v-model="formData.name" 
+            placeholder="请输入位置名称，如：第一层、抽屉A等"
+            maxlength="50"
+            show-word-limit
           />
         </el-form-item>
-        <el-form-item label="排序">
-          <el-input-number v-model="formData.order" :min="0" />
+        
+        <el-form-item label="父节点位置">
+          <div class="parent-select-wrapper">
+            <el-tree-select
+              v-model="formData.parent"
+              :data="parentNodeOptions"
+              placeholder="选择父节点（留空则创建为根节点）"
+              clearable
+              :props="{ 
+                label: 'label', 
+                value: 'id', 
+                children: 'children'
+              }"
+              check-strictly
+              style="width: 100%"
+              filterable
+              :filter-method="filterParentNodes"
+            />
+            <!-- <div class="form-tip">
+              <el-icon><InfoFilled /></el-icon>
+            </div> -->
+          </div>
         </el-form-item>
-        <el-form-item label="备注">
+        
+        <el-form-item label="显示顺序">
+          <el-input-number 
+            v-model="formData.order" 
+            :min="0" 
+            :max="9999"
+            placeholder="数字越小越靠前，默认为0"
+            style="width: 100%"
+          />
+          <div class="form-tip">
+            <el-icon><InfoFilled /></el-icon>
+            <span>同级节点按此数值排序，数值越小越靠前显示</span>
+          </div>
+        </el-form-item>
+        
+        <el-form-item label="备注说明">
           <el-input
             v-model="formData.description"
             type="textarea"
             :rows="3"
-            placeholder="请输入备注"
+            placeholder="可选，如：靠窗的那一侧、常用物品存放处等"
+            maxlength="500"
+            show-word-limit
           />
         </el-form-item>
       </el-form>
@@ -135,20 +182,28 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, InfoFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useLocationStore } from '@/stores/location'
-import { useGuziStore } from '@/stores/guzi'
-import { createLocationNode, updateLocationNode, deleteLocationNode } from '@/api/location'
+import {
+  createLocationNode,
+  updateLocationNode,
+  patchLocationNode,
+  deleteLocationNode,
+  getLocationNodeDetail,
+  getLocationNodeGoods,
+} from '@/api/location'
 import GoodsCard from '@/components/GoodsCard.vue'
 import GoodsDrawer from '@/components/GoodsDrawer.vue'
-import type { StorageNode } from '@/api/types'
+import type { StorageNode, GoodsListItem } from '@/api/types'
 import type { TreeNode } from '@/utils/tree'
 
 const locationStore = useLocationStore()
-const guziStore = useGuziStore()
 
 const selectedNode = ref<StorageNode | null>(null)
+const locationGuziList = ref<GoodsListItem[]>([])
+const goodsLoading = ref(false)
+const includeChildren = ref(true)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editingNodeId = ref<number | null>(null)
@@ -162,18 +217,100 @@ const formData = ref({
 
 const dialogTitle = computed(() => (isEdit.value ? '编辑位置' : '新增位置'))
 
-const locationGuziList = computed(() => {
-  if (!selectedNode.value) return []
-  return guziStore.guziList.filter(
-    (goods: import('@/api/types').GoodsListItem) => goods.location_path?.includes(selectedNode.value!.name)
-  )
+// 计算可选的父节点列表（编辑时需要排除当前节点及其子节点，避免循环引用）
+const parentNodeOptions = computed(() => {
+  const treeData = locationStore.treeData
+  if (!isEdit.value || !editingNodeId.value) {
+    // 新建时，所有节点都可以作为父节点
+    return treeData
+  }
+  
+  // 编辑时，需要排除当前节点及其所有子节点，避免循环引用
+  const excludeIds = locationStore.getChildrenIds(editingNodeId.value)
+  
+  // 递归过滤树节点
+  const filterTree = (nodes: TreeNode[]): TreeNode[] => {
+    return nodes
+      .filter((node) => !excludeIds.includes(node.id))
+      .map((node) => ({
+        ...node,
+        children: node.children && node.children.length > 0 ? filterTree(node.children) : undefined,
+      }))
+  }
+  
+  return filterTree(treeData)
 })
 
-const handleNodeClick = (data: TreeNode) => {
-  if (data.data) {
-    selectedNode.value = data.data
+// 过滤父节点（用于搜索）
+const filterParentNodes = (query: string, node: TreeNode) => {
+  if (!query) return true
+  const label = node.label || ''
+  const pathName = node.data?.path_name || ''
+  return label.toLowerCase().includes(query.toLowerCase()) || 
+         pathName.toLowerCase().includes(query.toLowerCase())
+}
+
+const handleNodeClick = async (data: TreeNode) => {
+  if (!data.data) return
+  
+  try {
+    // 获取节点详情
+    const nodeDetail = await getLocationNodeDetail(data.id)
+    selectedNode.value = nodeDetail
+    
     // 加载该位置的谷子
-    guziStore.searchGuzi({ location: data.id })
+    await loadNodeGoods(data.id, includeChildren.value)
+  } catch (err: any) {
+    ElMessage.error(err.message || '获取节点详情失败')
+  }
+}
+
+const loadNodeGoods = async (nodeId: number, includeChildrenFlag: boolean = false) => {
+  if (!nodeId) return
+  
+  goodsLoading.value = true
+  try {
+    const response = await getLocationNodeGoods(nodeId, includeChildrenFlag)
+    console.log('商品列表响应:', response)
+    console.log('响应类型:', typeof response)
+    console.log('是否为数组:', Array.isArray(response))
+    
+    // 处理不同的响应格式（参考 guzi store 的处理方式）
+    let results: GoodsListItem[] = []
+    
+    // 如果响应本身就是数组
+    if (Array.isArray(response)) {
+      results = response
+    }
+    // 如果响应是分页对象
+    else if (response && typeof response === 'object') {
+      const responseObj = response as any
+      // 检查是否有 results 字段
+      if ('results' in responseObj && Array.isArray(responseObj.results)) {
+        results = responseObj.results
+      }
+      // 如果没有 results 字段，可能是直接返回的数据对象
+      else if (responseObj.id) {
+        // 单个对象，包装成数组
+        results = [responseObj]
+      }
+    }
+    
+    locationGuziList.value = results
+    console.log('最终设置的商品列表:', locationGuziList.value)
+    console.log('商品数量:', locationGuziList.value.length)
+  } catch (err: any) {
+    console.error('获取商品列表错误:', err)
+    ElMessage.error(err.message || '获取商品列表失败')
+    locationGuziList.value = []
+  } finally {
+    goodsLoading.value = false
+  }
+}
+
+const handleIncludeChildrenChange = (value: boolean) => {
+  if (selectedNode.value) {
+    loadNodeGoods(selectedNode.value.id, value)
   }
 }
 
@@ -204,15 +341,27 @@ const handleEditNode = (data: TreeNode) => {
 
 const handleDeleteNode = async (data: TreeNode) => {
   if (!data.data) return
+  
+  // 检查是否有子节点
+  const childrenIds = locationStore.getChildrenIds(data.id)
+  const hasChildren = childrenIds.length > 1 // 包含自己，所以 > 1 表示有子节点
+  
+  const message = hasChildren
+    ? `删除此位置将同时删除所有子节点（共 ${childrenIds.length - 1} 个子节点），并取消关联商品的 location 关联。确定要继续吗？`
+    : '确定要删除这个位置吗？删除后，关联商品的 location 字段将被设置为空。'
+  
   try {
-    await ElMessageBox.confirm('确定要删除这个位置吗？', '提示', {
+    await ElMessageBox.confirm(message, '提示', {
       type: 'warning',
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消',
     })
     await deleteLocationNode(data.id)
     ElMessage.success('删除成功')
     await locationStore.fetchNodes()
     if (selectedNode.value?.id === data.id) {
       selectedNode.value = null
+      locationGuziList.value = []
     }
   } catch (err) {
     if (err !== 'cancel') {
@@ -229,7 +378,14 @@ const handleSubmit = async () => {
 
   try {
     if (isEdit.value && editingNodeId.value) {
-      await updateLocationNode(editingNodeId.value, formData.value)
+      // 使用 PATCH 进行部分更新，只发送有变化的字段
+      const updateData: Partial<StorageNode> = {}
+      if (formData.value.name) updateData.name = formData.value.name
+      if (formData.value.parent !== undefined) updateData.parent = formData.value.parent
+      if (formData.value.order !== undefined) updateData.order = formData.value.order
+      if (formData.value.description !== undefined) updateData.description = formData.value.description
+      
+      await patchLocationNode(editingNodeId.value, updateData)
       ElMessage.success('更新成功')
     } else {
       await createLocationNode(formData.value)
@@ -237,6 +393,13 @@ const handleSubmit = async () => {
     }
     dialogVisible.value = false
     await locationStore.fetchNodes()
+    
+    // 如果更新的是当前选中的节点，重新加载详情
+    if (isEdit.value && editingNodeId.value === selectedNode.value?.id) {
+      const nodeDetail = await getLocationNodeDetail(editingNodeId.value)
+      selectedNode.value = nodeDetail
+      await loadNodeGoods(editingNodeId.value, includeChildren.value)
+    }
   } catch (err: any) {
     ElMessage.error(err.message || '操作失败')
   }
@@ -358,11 +521,32 @@ onMounted(async () => {
   margin-top: 24px;
 }
 
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
 .section-title {
   font-size: 18px;
   font-weight: bold;
-  margin-bottom: 16px;
+  margin: 0;
   color: var(--text-dark);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.debug-info {
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--text-light);
+  opacity: 0.7;
+}
+
+.loading-guzi {
+  padding: 20px;
 }
 
 .empty-guzi {
@@ -382,6 +566,76 @@ onMounted(async () => {
 
 :deep(.el-tree-node__content:hover) {
   background-color: var(--secondary-gray);
+}
+
+/* 表单样式 */
+.parent-select-wrapper {
+  width: 100%;
+}
+
+.tree-select-node {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.tree-select-node .node-label {
+  flex: 1;
+  font-weight: 500;
+}
+
+.tree-select-node .node-path {
+  font-size: 12px;
+  color: var(--text-light);
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.form-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background-color: var(--secondary-gray);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-light);
+  line-height: 1.5;
+}
+
+.form-tip .el-icon {
+  margin-top: 2px;
+  color: var(--primary-gold);
+  flex-shrink: 0;
+}
+
+.form-tip span {
+  flex: 1;
+}
+
+/* 树选择器样式优化 */
+:deep(.el-tree-select__popper) {
+  .el-tree-node__content {
+    padding: 8px 12px;
+  }
+  
+  .el-tree-node__label {
+    font-size: 14px;
+  }
+  
+  .el-tree-node__expand-icon {
+    padding: 4px;
+  }
+}
+
+:deep(.el-select-dropdown__item) {
+  padding: 8px 12px;
 }
 </style>
 

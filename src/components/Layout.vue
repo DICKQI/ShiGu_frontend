@@ -21,6 +21,18 @@
               <el-icon><FolderOpened /></el-icon>
               <span>位置管理</span>
             </el-menu-item>
+            <el-menu-item index="/ip">
+              <el-icon><Collection /></el-icon>
+              <span>IP作品管理</span>
+            </el-menu-item>
+            <el-menu-item index="/character">
+              <el-icon><User /></el-icon>
+              <span>角色管理</span>
+            </el-menu-item>
+            <el-menu-item index="/category">
+              <el-icon><Box /></el-icon>
+              <span>品类管理</span>
+            </el-menu-item>
           </el-menu>
         </div>
         <div class="nav-actions">
@@ -47,7 +59,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Grid, FolderOpened, Plus } from '@element-plus/icons-vue'
+import { Grid, FolderOpened, Plus, Collection, User, Box } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -58,6 +70,9 @@ const activeMenu = computed(() => {
   const path = route.path
   if (path.startsWith('/showcase')) return '/showcase'
   if (path.startsWith('/location')) return '/location'
+  if (path.startsWith('/ip')) return '/ip'
+  if (path.startsWith('/character')) return '/character'
+  if (path.startsWith('/category')) return '/category'
   return '/showcase'
 })
 

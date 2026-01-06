@@ -142,8 +142,12 @@
                 :action="uploadUrl"
                 :limit="1"
                 list-type="picture-card"
+                :auto-upload="false"
                 :on-success="handleMainPhotoSuccess"
                 :on-remove="handleMainPhotoRemove"
+                :before-upload="beforeMainPhotoUpload"
+                :on-change="handleMainPhotoChange"
+                accept="image/*"
               >
                 <el-icon><Plus /></el-icon>
               </el-upload>
@@ -171,6 +175,46 @@
         </el-form-item>
       </el-form>
     </el-card>
+
+    <!-- 图片裁切对话框 -->
+    <el-dialog
+      v-model="cropDialogVisible"
+      title="裁切图片"
+      width="600px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+    >
+      <div class="crop-container">
+        <vue-cropper
+          ref="cropperRef"
+          :img="cropImageSrc"
+          :output-size="1"
+          :output-type="'png'"
+          :info="true"
+          :full="true"
+          :can-move="true"
+          :can-move-box="true"
+          :fixed-box="true"
+          :original="false"
+          :auto-crop="true"
+          :auto-crop-width="300"
+          :auto-crop-height="300"
+          :center-box="true"
+          :high="true"
+          :fixed="true"
+          :fixed-number="[1, 1]"
+          :enlarge="1"
+          :mode="'contain'"
+          class="cropper"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="handleCropCancel">取消</el-button>
+        <el-button type="primary" @click="handleCropConfirm" :loading="cropping">
+          确认裁切
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -178,11 +222,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, type FormInstance, type FormRules, type UploadFile } from 'element-plus'
 import { useLocationStore } from '@/stores/location'
 import { createGoods, updateGoods, getGoodsDetail } from '@/api/goods'
 import { getIPList, getCharacterList, getCategoryList } from '@/api/metadata'
 import type { GoodsDetail, IP, Character, Category } from '@/api/types'
+import request from '@/utils/request'
+// @ts-ignore
+import { VueCropper } from 'vue-cropper'
 
 const router = useRouter()
 const route = useRoute()
@@ -211,7 +258,12 @@ const formData = ref({
   main_photo: '',
 })
 
-const mainPhotoList = ref([])
+const mainPhotoList = ref<UploadFile[]>([])
+const cropperRef = ref<any>(null)
+const cropDialogVisible = ref(false)
+const cropImageSrc = ref('')
+const pendingFile = ref<File | null>(null)
+const cropping = ref(false)
 
 const uploadUrl = '/api/upload' // 实际的上传接口
 
@@ -236,12 +288,101 @@ const handleIpChange = () => {
   formData.value.character = undefined
 }
 
+// 上传前拦截，进入裁切界面
+const beforeMainPhotoUpload = (file: File) => {
+  // 阻止自动上传
+  return false
+}
+
+// 文件选择变化，打开裁切对话框
+const handleMainPhotoChange = (file: UploadFile) => {
+  if (file.raw) {
+    pendingFile.value = file.raw
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      cropImageSrc.value = e.target?.result as string
+      cropDialogVisible.value = true
+    }
+    reader.readAsDataURL(file.raw)
+  }
+}
+
+// 确认裁切
+const handleCropConfirm = async () => {
+  if (!cropperRef.value) return
+
+  cropping.value = true
+  try {
+    // 获取裁切后的图片数据
+    cropperRef.value.getCropBlob(async (blob: Blob) => {
+      try {
+        // 将 blob 转换为 File
+        const croppedFile = new File([blob], pendingFile.value?.name || 'cropped.png', {
+          type: 'image/png',
+        })
+
+        // 创建 FormData 上传
+        const formDataObj = new FormData()
+        formDataObj.append('file', croppedFile)
+
+        // 使用项目的 request 工具上传
+        const result = await request.post<{ url?: string; data?: { url?: string } }>(
+          uploadUrl,
+          formDataObj
+        )
+        const imageUrl = result.url || result.data?.url || ''
+
+        // 更新表单数据
+        formData.value.main_photo = imageUrl
+
+        // 更新文件列表显示
+        if (mainPhotoList.value.length > 0 && mainPhotoList.value[0]) {
+          mainPhotoList.value[0].url = imageUrl
+          mainPhotoList.value[0].status = 'success'
+        } else {
+          mainPhotoList.value = [
+            {
+              name: croppedFile.name,
+              url: imageUrl,
+              status: 'success',
+            } as UploadFile,
+          ]
+        }
+
+        ElMessage.success('图片上传成功')
+        cropDialogVisible.value = false
+        cropImageSrc.value = ''
+        pendingFile.value = null
+      } catch (error: any) {
+        ElMessage.error(error.message || '上传失败')
+        // 移除失败的文件
+        mainPhotoList.value = []
+      } finally {
+        cropping.value = false
+      }
+    })
+  } catch (error: any) {
+    ElMessage.error(error.message || '裁切失败')
+    cropping.value = false
+  }
+}
+
+// 取消裁切
+const handleCropCancel = () => {
+  cropDialogVisible.value = false
+  cropImageSrc.value = ''
+  pendingFile.value = null
+  // 移除未裁切的文件
+  mainPhotoList.value = []
+}
+
 const handleMainPhotoSuccess = (response: any) => {
   formData.value.main_photo = response.url || response.data?.url || ''
 }
 
 const handleMainPhotoRemove = () => {
   formData.value.main_photo = ''
+  mainPhotoList.value = []
 }
 
 const handleSubmit = async () => {
@@ -358,6 +499,19 @@ onMounted(async () => {
 
 :deep(.el-upload--picture-card:hover) {
   border-color: var(--primary-gold);
+}
+
+.crop-container {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.cropper {
+  width: 100%;
+  height: 100%;
 }
 </style>
 

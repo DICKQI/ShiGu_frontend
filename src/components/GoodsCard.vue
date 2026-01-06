@@ -13,7 +13,6 @@
         :alt="goods.name"
         fit="cover"
         loading="lazy"
-        :preview-src-list="[goods.main_photo]"
       >
         <template #error>
           <div class="image-placeholder">

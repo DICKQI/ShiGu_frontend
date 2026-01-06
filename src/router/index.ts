@@ -23,6 +23,30 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
+    path: '/ip',
+    name: 'IPManagement',
+    component: () => import('@/views/IPManagement.vue'),
+    meta: {
+      title: 'IP作品管理',
+    },
+  },
+  {
+    path: '/character',
+    name: 'CharacterManagement',
+    component: () => import('@/views/CharacterManagement.vue'),
+    meta: {
+      title: '角色管理',
+    },
+  },
+  {
+    path: '/category',
+    name: 'CategoryManagement',
+    component: () => import('@/views/CategoryManagement.vue'),
+    meta: {
+      title: '品类管理',
+    },
+  },
+  {
     path: '/goods/new',
     name: 'GoodsNew',
     component: () => import('@/views/GoodsForm.vue'),

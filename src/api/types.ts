@@ -11,11 +11,18 @@ export interface StorageNode {
   order: number
 }
 
+// IP关键词
+export interface IPKeyword {
+  id: number
+  value: string
+}
+
 // IP信息
 export interface IP {
   id: number
   name: string
   short_name?: string
+  keywords?: IPKeyword[]
 }
 
 // 角色信息
