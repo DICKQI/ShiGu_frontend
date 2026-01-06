@@ -3,7 +3,10 @@ import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosReq
 import { ElMessage } from 'element-plus'
 
 // API基础URL（根据实际后端地址配置）
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const DEFAULT_BASE_URL = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:8000`
+  : 'http://127.0.0.1:8000'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE_URL
 
 // 创建axios实例
 const axiosInstance = axios.create({

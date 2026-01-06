@@ -126,6 +126,7 @@
                 :auto-upload="false"
                 :limit="1"
                 list-type="picture-card"
+                :show-file-list="false"
                 :on-remove="handleAvatarRemove"
                 :before-upload="beforeAvatarUpload"
                 :on-change="handleAvatarFileChange"
