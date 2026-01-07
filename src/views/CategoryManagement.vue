@@ -300,9 +300,7 @@ onMounted(() => {
 }
 
 .card-header-section {
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-color, #e4e7ed);
+  margin-bottom: 8px;
 }
 
 .card-title-row {
