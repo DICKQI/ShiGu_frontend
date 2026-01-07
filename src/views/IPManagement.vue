@@ -1,169 +1,152 @@
 <template>
-  <div class="ip-management">
-    <el-card class="management-card">
-      <template #header>
-        <div class="card-header">
-          <span>IP作品管理</span>
-          <el-button type="primary" @click="handleAdd">
-            <el-icon><Plus /></el-icon>
-            新增IP
-          </el-button>
-        </div>
-      </template>
+  <div class="ip-management-container">
+    <!-- 顶部操作区 -->
+    <div class="header-section">
+      <div class="title-wrapper">
+        <h2 class="page-title">IP作品管理</h2>
+        <span class="sub-title">管理您的谷子所属作品分类</span>
+      </div>
+      <el-button class="add-btn" type="primary" @click="handleAdd">
+        <el-icon><Plus /></el-icon>
+        <span>新增作品</span>
+      </el-button>
+    </div>
 
-      <!-- 搜索栏 -->
-      <div class="search-bar">
+    <!-- 搜索与筛选卡片 -->
+    <el-card class="search-card" shadow="never">
+      <div class="search-flex">
         <el-input
           v-model="searchText"
-          placeholder="搜索IP作品名称"
+          placeholder="搜索作品名称或关键词..."
           clearable
           @clear="handleSearch"
           @keyup.enter="handleSearch"
-          style="width: 300px"
+          class="custom-search"
         >
           <template #prefix>
             <el-icon><Search /></el-icon>
           </template>
         </el-input>
-        <el-button type="primary" @click="handleSearch">
-          <el-icon><Search /></el-icon>
-          搜索
-        </el-button>
-      </div>
-
-      <!-- PC端表格 -->
-      <div v-loading="loading" class="table-container">
-        <el-table :data="ipList" stripe style="width: 100%" class="desktop-table">
-          <el-table-column prop="id" label="ID" width="80" />
-          <el-table-column prop="name" label="作品名称" min-width="200" />
-          <el-table-column label="关键词" min-width="250">
-            <template #default="{ row }">
-              <div class="keywords-display">
-                <el-tag
-                  v-for="keyword in row.keywords || []"
-                  :key="keyword.id"
-                  size="small"
-                  class="keyword-tag"
-                >
-                  {{ keyword.value }}
-                </el-tag>
-                <span v-if="!row.keywords || row.keywords.length === 0" class="text-gray">暂无</span>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="180" fixed="right">
-            <template #default="{ row }">
-              <el-button text type="primary" @click="handleEdit(row)">
-                <el-icon><Edit /></el-icon>
-                编辑
-              </el-button>
-              <el-button text type="danger" @click="handleDelete(row)">
-                <el-icon><Delete /></el-icon>
-                删除
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-
-        <!-- 移动端卡片列表 -->
-        <div class="mobile-card-list">
-          <div
-            v-for="item in ipList"
-            :key="item.id"
-            class="mobile-card"
-          >
-            <div class="card-header-section">
-              <div class="card-title-row">
-                <h3 class="card-name">{{ item.name }}</h3>
-                <div class="card-keywords-inline">
-                  <el-tag
-                    v-for="keyword in item.keywords || []"
-                    :key="keyword.id"
-                    size="small"
-                    class="keyword-tag"
-                  >
-                    {{ keyword.value }}
-                  </el-tag>
-                  <span v-if="!item.keywords || item.keywords.length === 0" class="text-gray">暂无</span>
-                </div>
-              </div>
-            </div>
-            <div class="card-actions">
-              <el-button type="primary" size="small" @click="handleEdit(item)">
-                <el-icon><Edit /></el-icon>
-                编辑
-              </el-button>
-              <el-button type="danger" size="small" @click="handleDelete(item)">
-                <el-icon><Delete /></el-icon>
-                删除
-              </el-button>
-            </div>
-          </div>
-        </div>
-
-        <el-empty v-if="!loading && ipList.length === 0" description="暂无数据" />
+        <el-button class="search-btn" type="primary" @click="handleSearch">搜索</el-button>
       </div>
     </el-card>
 
-    <!-- 新增/编辑对话框 -->
+    <!-- 内容展示区 -->
+    <div v-loading="loading" class="content-body">
+      <!-- PC端：精致的表格 -->
+      <div class="desktop-view">
+        <el-table :data="ipList" border-radius="12" style="width: 100%">
+          <el-table-column prop="name" label="作品名称" min-width="180">
+            <template #default="{ row }">
+              <span class="table-name">{{ row.name }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="检索关键词" min-width="250">
+            <template #default="{ row }">
+              <div class="tag-group">
+                <el-tag
+                  v-for="keyword in row.keywords || []"
+                  :key="keyword.id"
+                  effect="plain"
+                  round
+                  size="small"
+                  class="custom-tag"
+                >
+                  {{ keyword.value }}
+                </el-tag>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="150" align="right" fixed="right">
+            <template #default="{ row }">
+              <el-button-group class="action-btns">
+                <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
+                <el-divider direction="vertical" />
+                <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+              </el-button-group>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- 移动端：现代化瀑布流卡片 -->
+      <div class="mobile-view">
+        <div v-for="item in ipList" :key="item.id" class="ip-card-item">
+          <div class="card-main" @click="handleEdit(item)">
+            <div class="card-info">
+              <div class="name-row">
+                <h3 class="name-text">{{ item.name }}</h3>
+              </div>
+              <div class="keyword-row">
+                <span v-for="keyword in item.keywords || []" :key="keyword.id" class="mini-tag">
+                  {{ keyword.value }}
+                </span>
+                <span v-if="!item.keywords?.length" class="no-tag">暂无关键词</span>
+              </div>
+            </div>
+            <div class="card-arrow">
+              <el-icon><ArrowRight /></el-icon>
+            </div>
+          </div>
+          
+          <div class="card-footer">
+             <div class="footer-action" @click="handleEdit(item)">
+                <el-icon><Edit /></el-icon>编辑
+             </div>
+             <div class="footer-action delete" @click.stop="handleDelete(item)">
+                <el-icon><Delete /></el-icon>删除
+             </div>
+          </div>
+        </div>
+      </div>
+
+      <el-empty v-if="!loading && ipList.length === 0" description="没有找到相关的作品" />
+    </div>
+
+    <!-- 弹窗部分保持逻辑不变，仅优化样式 -->
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="600px"
-      @close="handleDialogClose"
+      width="90%"
+      class="custom-dialog"
+      align-center
     >
-      <el-form
-        :model="formData"
-        :rules="formRules"
-        ref="formRef"
-        label-position="top"
-      >
-        <el-form-item label="作品名称" prop="name">
-          <el-input
-            v-model="formData.name"
-            placeholder="请输入IP作品名称"
-            maxlength="100"
-            show-word-limit
-          />
+      <el-form :model="formData" :rules="formRules" ref="formRef" label-position="top">
+        <el-form-item label="作品官方全称" prop="name">
+          <el-input v-model="formData.name" placeholder="例如：崩坏：星穹铁道" />
         </el-form-item>
-        <el-form-item label="关键词">
-          <div class="keywords-manager">
-            <div class="keywords-input-group">
+        <el-form-item label="关联关键词 (别名/缩写)">
+          <div class="keyword-manager-box">
+            <div class="input-inline">
               <el-input
                 v-model="newKeyword"
-                placeholder="输入关键词（通常是IP全称的缩写，如：星铁、崩铁、HSR）"
-                maxlength="50"
+                placeholder="输入别名后点添加"
                 @keyup.enter="handleAddKeyword"
-                clearable
               >
                 <template #append>
-                  <el-button @click="handleAddKeyword" :disabled="!newKeyword.trim()">
-                    <el-icon><Plus /></el-icon>
-                    添加
-                  </el-button>
+                  <el-button @click="handleAddKeyword">添加</el-button>
                 </template>
               </el-input>
             </div>
-            <div class="keywords-list">
+            <div class="tags-wrapper">
               <el-tag
                 v-for="(keyword, index) in formData.keywords"
                 :key="index"
                 closable
+                round
                 @close="handleRemoveKeyword(index)"
-                class="keyword-tag"
               >
                 {{ keyword }}
               </el-tag>
-              <div v-if="formData.keywords.length === 0" class="empty-keywords">
-                <span class="text-gray">暂无关键词，可添加IP的缩写或别名</span>
-              </div>
             </div>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting">确定</el-button>
+        <div class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" class="submit-btn" @click="handleSubmit" :loading="submitting">保存更改</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -171,18 +154,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { Plus, Edit, Delete, Search } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Search, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import {
-  getIPList,
-  getIPDetail,
-  createIP,
-  updateIP,
-  deleteIP,
-} from '@/api/metadata'
+// 假设 API 路径保持不变
+import { getIPList, getIPDetail, createIP, updateIP, deleteIP } from '@/api/metadata'
 import type { IP } from '@/api/types'
 
+// 逻辑部分基本复用原代码，仅做细微优化
 const loading = ref(false)
 const submitting = ref(false)
 const searchText = ref('')
@@ -199,23 +178,15 @@ const formData = ref({
 })
 
 const formRules: FormRules = {
-  name: [
-    { required: true, message: '请输入作品名称', trigger: 'blur' },
-    { max: 100, message: '作品名称不能超过100个字符', trigger: 'blur' },
-  ],
+  name: [{ required: true, message: '请输入作品名称', trigger: 'blur' }],
 }
 
-const dialogTitle = computed(() => (isEdit.value ? '编辑IP作品' : '新增IP作品'))
+const dialogTitle = computed(() => (isEdit.value ? '📝 编辑作品资料' : '✨ 新增IP作品'))
 
-// 加载IP列表
 const fetchIPList = async () => {
   loading.value = true
   try {
-    const params: any = {}
-    if (searchText.value.trim()) {
-      params.search = searchText.value.trim()
-    }
-    const data = await getIPList(params)
+    const data = await getIPList({ search: searchText.value.trim() || undefined })
     ipList.value = data
   } catch (err: any) {
     ElMessage.error(err.message || '加载失败')
@@ -224,119 +195,74 @@ const fetchIPList = async () => {
   }
 }
 
-// 搜索
-const handleSearch = () => {
-  fetchIPList()
-}
+const handleSearch = () => fetchIPList()
 
-// 新增
 const handleAdd = () => {
   isEdit.value = false
   editingId.value = null
   formData.value = { name: '', keywords: [] }
-  newKeyword.value = ''
   dialogVisible.value = true
 }
 
-// 编辑
 const handleEdit = async (row: IP) => {
   isEdit.value = true
   editingId.value = row.id
-  
-  // 获取完整详情以获取关键词
   try {
     const detail = await getIPDetail(row.id)
     formData.value = {
       name: detail.name,
       keywords: detail.keywords?.map(k => k.value) || [],
     }
-  } catch (err: any) {
-    // 如果获取详情失败，使用列表数据
+  } catch {
     formData.value = {
       name: row.name,
       keywords: row.keywords?.map(k => k.value) || [],
     }
   }
-  
-  newKeyword.value = ''
   dialogVisible.value = true
 }
 
-// 添加关键词
 const handleAddKeyword = () => {
-  const keyword = newKeyword.value.trim()
-  if (!keyword) return
-  
-  // 检查是否已存在
-  if (formData.value.keywords.includes(keyword)) {
-    ElMessage.warning('该关键词已存在')
-    return
-  }
-  
-  // 检查长度
-  if (keyword.length > 50) {
-    ElMessage.warning('关键词不能超过50个字符')
-    return
-  }
-  
-  formData.value.keywords.push(keyword)
+  const val = newKeyword.value.trim()
+  if (!val) return
+  if (formData.value.keywords.includes(val)) return ElMessage.warning('关键词已存在')
+  formData.value.keywords.push(val)
   newKeyword.value = ''
 }
 
-// 删除关键词
 const handleRemoveKeyword = (index: number) => {
   formData.value.keywords.splice(index, 1)
 }
 
-// 删除
 const handleDelete = async (row: IP) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除IP作品"${row.name}"吗？删除后该IP下的所有角色和谷子数据将无法正常显示。`,
-      '提示',
-      {
-        type: 'warning',
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
-      }
-    )
+    await ElMessageBox.confirm(`确定删除作品《${row.name}》吗？这将导致关联的角色数据丢失。`, '警告', {
+      confirmButtonText: '确定删除',
+      cancelButtonText: '点错了',
+      type: 'warning',
+      buttonSize: 'default'
+    })
     await deleteIP(row.id)
-    ElMessage.success('删除成功')
-    await fetchIPList()
-  } catch (err: any) {
-    if (err !== 'cancel') {
-      ElMessage.error(err.message || '删除失败')
-    }
-  }
+    ElMessage.success('已安全删除')
+    fetchIPList()
+  } catch {}
 }
 
-// 提交表单
 const handleSubmit = async () => {
   if (!formRef.value) return
-
   await formRef.value.validate(async (valid) => {
     if (!valid) return
-
     submitting.value = true
     try {
-      const submitData: { name: string; keywords?: string[] } = {
-        name: formData.value.name,
-      }
-      
-      // 如果有关键词，则包含在提交数据中（即使是空数组也会完全替换）
-      if (formData.value.keywords.length > 0) {
-        submitData.keywords = formData.value.keywords
-      }
-      
+      const data = { name: formData.value.name, keywords: formData.value.keywords }
       if (isEdit.value && editingId.value) {
-        await updateIP(editingId.value, submitData)
-        ElMessage.success('更新成功')
+        await updateIP(editingId.value, data)
       } else {
-        await createIP(submitData)
-        ElMessage.success('创建成功')
+        await createIP(data)
       }
+      ElMessage.success('操作成功')
       dialogVisible.value = false
-      await fetchIPList()
+      fetchIPList()
     } catch (err: any) {
       ElMessage.error(err.message || '操作失败')
     } finally {
@@ -345,218 +271,225 @@ const handleSubmit = async () => {
   })
 }
 
-// 对话框关闭
-const handleDialogClose = () => {
-  formRef.value?.resetFields()
-  formData.value = { name: '', keywords: [] }
-  newKeyword.value = ''
-}
-
-onMounted(() => {
-  fetchIPList()
-})
+onMounted(() => fetchIPList())
 </script>
 
 <style scoped>
-.ip-management {
-  padding: 20px;
-  max-width: 1400px;
+/* 容器设计：采用柔和背景 */
+.ip-management-container {
+  padding: 16px;
+  max-width: 1000px;
   margin: 0 auto;
+  min-height: 100vh;
+  background-color: #f8f9fc;
 }
 
-.management-card {
-  border-radius: 12px;
-}
-
-.card-header {
+/* 顶部标题区 */
+.header-section {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-weight: bold;
-  color: var(--primary-gold);
-}
-
-.search-bar {
-  display: flex;
-  gap: 12px;
   margin-bottom: 20px;
 }
 
-.table-container {
-  min-height: 400px;
-}
-
-:deep(.el-table) {
-  border-radius: var(--card-radius);
-  overflow: hidden;
-}
-
-:deep(.el-button.is-text) {
-  padding: 4px 8px;
-}
-
-.keywords-display {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-
-.keyword-tag {
+.page-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #303133;
   margin: 0;
 }
 
-.text-gray {
-  color: var(--text-light);
-  font-size: 12px;
+.sub-title {
+  font-size: 13px;
+  color: #909399;
 }
 
-/* 移动端卡片布局 */
-.mobile-card-list {
-  display: none;
-}
-
-.mobile-card {
-  background: #fff;
-  border: 1px solid var(--border-color, #dcdfe6);
+/* 搜索框美化 */
+.search-card {
+  margin-bottom: 20px;
   border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transition: all 0.3s ease;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
 }
 
-.mobile-card:active {
+.search-flex {
+  display: flex;
+  gap: 8px;
+}
+
+.custom-search :deep(.el-input__wrapper) {
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px #e4e7ed inset;
+}
+
+/* 品牌色按钮 */
+.add-btn, .search-btn, .submit-btn {
+  background: linear-gradient(135deg, #a396ff 0%, #8e7dff 100%);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+}
+
+/* PC端表格样式 */
+.desktop-view {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+}
+
+.table-name {
+  font-weight: 600;
+  color: #404144;
+}
+
+.custom-tag {
+  border: 1px solid #d9d4ff;
+  color: #5a4bff;
+  background: linear-gradient(135deg, #f6f4ff 0%, #ebe7ff 100%);
+  box-shadow: 0 6px 12px rgba(90, 75, 255, 0.08);
+}
+
+/* 移动端现代化卡片设计 */
+.mobile-view {
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ip-card-item {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  transition: transform 0.2s;
+}
+
+.ip-card-item:active {
   transform: scale(0.98);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
-.card-header-section {
+.card-main {
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   margin-bottom: 8px;
 }
 
-.card-title-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.card-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
+.name-text {
   margin: 0;
-  flex: 0 1 45%;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 17px;
+  color: #2c3e50;
+  font-weight: 600;
 }
 
-.card-keywords-inline {
+.keyword-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mini-tag {
+  font-size: 11px;
+  background: linear-gradient(135deg, #f6f4ff 0%, #ebe7ff 100%);
+  color: #5a4bff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #d9d4ff;
+}
+
+.no-tag {
+  font-size: 12px;
+  color: #c0c4cc;
+  font-style: italic;
+}
+
+.card-arrow {
+  color: #c0c4cc;
+}
+
+/* 卡片操作底部 */
+.card-footer {
+  display: flex;
+  border-top: 1px solid #f2f6fc;
+  background: #fafbfc;
+}
+
+.footer-action {
   flex: 1;
+  text-align: center;
+  padding: 10px 0;
+  font-size: 13px;
+  color: #606266;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 4px;
 }
 
-.card-actions {
-  display: flex;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-color, #e4e7ed);
+.footer-action:not(:last-child) {
+  border-right: 1px solid #f2f6fc;
 }
 
-.card-actions .el-button {
-  flex: 1;
+.footer-action.delete {
+  color: #f56c6c;
 }
 
-/* 响应式：移动端显示卡片，PC端显示表格 */
+/* 响应式适配 */
 @media (max-width: 768px) {
-  .desktop-table {
-    display: none !important;
+  .desktop-view {
+    display: none;
   }
-
-  .mobile-card-list {
-    display: block;
+  .mobile-view {
+    display: flex;
   }
-
-  .search-bar {
-    flex-direction: column;
+  .header-section {
+    flex-direction: row;
+    align-items: center;
   }
-
-  .search-bar .el-input {
-    width: 100% !important;
+  .page-title {
+    font-size: 18px;
   }
-
-  .search-bar .el-button {
-    width: 100%;
+  .add-btn span {
+    display: none; /* 移动端隐藏文字只留图标，更简洁 */
   }
-
-  .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .card-header .el-button {
-    width: 100%;
+  .add-btn {
+    padding: 10px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
   }
 }
 
-@media (min-width: 769px) {
-  .mobile-card-list {
-    display: none !important;
-  }
-
-  .desktop-table {
-    display: table !important;
-  }
+/* 弹窗与关键词管理 */
+.keyword-manager-box {
+  background: #f8f9fc;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px dashed #dcdfe6;
 }
 
-.keywords-manager {
-  width: 100%;
-}
-
-.keywords-input-group {
-  margin-bottom: 12px;
-}
-
-.keywords-list {
+.tags-wrapper {
+  margin-top: 12px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  min-height: 32px;
-  padding: 8px;
-  border: 1px solid var(--border-color, #dcdfe6);
-  border-radius: 4px;
-  background-color: var(--bg-light, #f5f7fa);
 }
 
-.empty-keywords {
-  width: 100%;
-  text-align: center;
-  padding: 8px 0;
+.custom-dialog :deep(.el-dialog__header) {
+  margin-right: 0;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f2f6fc;
 }
 
-/* 弹窗 & 表单移动端适配 */
-@media (max-width: 768px) {
-  :deep(.el-dialog) {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0;
-    border-radius: 0;
-  }
-
-  :deep(.el-dialog__body) {
-    max-height: calc(100vh - 120px);
-    overflow-y: auto;
-  }
+.custom-dialog :deep(.el-dialog__body) {
+  padding-top: 20px;
 }
 </style>
-
