@@ -107,8 +107,8 @@
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="90%"
-      class="custom-dialog"
+      :width="dialogWidth"
+      class="custom-dialog ip-dialog"
       align-center
     >
       <el-form :model="formData" :rules="formRules" ref="formRef" label-position="top">
@@ -153,7 +153,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Plus, Edit, Delete, Search, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -182,6 +182,14 @@ const formRules: FormRules = {
 }
 
 const dialogTitle = computed(() => (isEdit.value ? '📝 编辑作品资料' : '✨ 新增IP作品'))
+
+// 响应式对话框宽度
+const isMobile = ref(window.innerWidth <= 768)
+const dialogWidth = computed(() => (isMobile.value ? '90%' : '500px'))
+
+const handleResize = () => {
+  isMobile.value = window.innerWidth <= 768
+}
 
 const fetchIPList = async () => {
   loading.value = true
@@ -271,17 +279,23 @@ const handleSubmit = async () => {
   })
 }
 
-onMounted(() => fetchIPList())
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  fetchIPList()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
 </script>
 
 <style scoped>
-/* 容器设计：采用柔和背景 */
+/* 容器设计：参考云展柜布局 */
 .ip-management-container {
-  padding: 16px;
-  max-width: 1000px;
+  padding: 20px;
+  max-width: 1400px;
   margin: 0 auto;
-  min-height: 100vh;
-  background-color: #f8f9fc;
+  min-height: calc(100vh - 64px);
 }
 
 /* 顶部标题区 */
@@ -462,6 +476,14 @@ onMounted(() => fetchIPList())
   width: 1px;
   height: 16px;
   background: #e4e7ed;
+}
+
+/* PC端对话框宽度限制 */
+@media (min-width: 769px) {
+  .ip-dialog :deep(.el-dialog) {
+    width: 500px !important;
+    max-width: 500px !important;
+  }
 }
 
 /* 响应式适配 */

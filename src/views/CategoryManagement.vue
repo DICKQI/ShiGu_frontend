@@ -140,7 +140,12 @@ onMounted(fetchCategoryList)
 </script>
 
 <style scoped>
-.category-management-container { padding: 16px; max-width: 800px; margin: 0 auto; background: #f8f9fc; min-height: 100vh; }
+.category-management-container { 
+  padding: 20px; 
+  max-width: 1400px; 
+  margin: 0 auto; 
+  min-height: calc(100vh - 64px); 
+}
 .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .page-title { font-size: 22px; font-weight: 600; color: #303133; margin: 0; }
 .sub-title { font-size: 13px; color: #909399; }

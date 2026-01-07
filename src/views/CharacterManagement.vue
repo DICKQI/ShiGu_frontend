@@ -102,7 +102,7 @@
     </div>
 
     <!-- 弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="90%" class="custom-dialog" align-center>
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" :width="dialogWidth" class="custom-dialog character-dialog" align-center>
       <el-form :model="formData" :rules="formRules" ref="formRef" label-position="top">
         <div class="form-layout">
           <div class="avatar-col">
@@ -145,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Plus, Edit, Delete, Search, UserFilled, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules, UploadFile } from 'element-plus'
@@ -177,6 +177,24 @@ const formRules: FormRules = {
 }
 
 const dialogTitle = computed(() => (isEdit.value ? '🎭 编辑角色资料' : '✨ 迎接新角色'))
+
+// 响应式对话框宽度
+const isMobile = ref(window.innerWidth <= 768)
+const dialogWidth = computed(() => (isMobile.value ? '90%' : '500px'))
+
+const handleResize = () => {
+  isMobile.value = window.innerWidth <= 768
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  fetchIPList()
+  fetchCharacterList()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
 
 const getGenderLabel = (g: CharacterGender) => ({ male: '男', female: '女', other: '其他' }[g] || '未知')
 
@@ -267,16 +285,14 @@ const handleSubmit = async () => {
   })
 }
 
-onMounted(() => { fetchIPList(); fetchCharacterList(); })
 </script>
 
 <style scoped>
 .character-management-container {
-  padding: 16px;
-  max-width: 1000px;
+  padding: 20px;
+  max-width: 1400px;
   margin: 0 auto;
-  background-color: #f8f9fc;
-  min-height: 100vh;
+  min-height: calc(100vh - 64px);
 }
 
 .header-section {
@@ -336,6 +352,14 @@ onMounted(() => { fetchIPList(); fetchCharacterList(); })
 .preview-img { width: 100%; height: 100%; object-fit: cover; }
 .upload-label { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.5); color: #fff; font-size: 11px; text-align: center; padding: 4px 0; }
 .custom-radio :deep(.el-radio-button__inner) { border-radius: 8px !important; margin-right: 8px; border: 1px solid #dcdfe6 !important; }
+
+/* PC端对话框宽度限制 */
+@media (min-width: 769px) {
+  .character-dialog :deep(.el-dialog) {
+    width: 500px !important;
+    max-width: 500px !important;
+  }
+}
 
 @media (max-width: 768px) {
   .desktop-view { display: none; }
