@@ -78,8 +78,8 @@
       <router-view />
     </main>
 
-    <!-- 悬浮按钮（全端） -->
-    <div class="fab-btn" @click="goToAdd">
+    <!-- 悬浮按钮（仅云展柜页面展示） -->
+    <div v-if="showFab" class="fab-btn" @click="goToAdd">
       <el-icon><Plus /></el-icon>
     </div>
   </div>
@@ -112,6 +112,9 @@ const handleMenuSelect = (index: string) => {
 const goHome = () => {
   router.push('/showcase')
 }
+
+// 仅在云展柜页面显示“新增谷子”悬浮按钮
+const showFab = computed(() => route.path.startsWith('/showcase'))
 
 const goToAdd = () => {
   router.push('/goods/new')
