@@ -1,6 +1,6 @@
 <template>
   <div class="ip-management">
-    <el-card>
+    <el-card class="management-card">
       <template #header>
         <div class="card-header">
           <span>IP作品管理</span>
@@ -74,7 +74,6 @@
           >
             <div class="card-header-section">
               <div class="card-title-row">
-                <span class="card-id">#{{ item.id }}</span>
                 <h3 class="card-name">{{ item.name }}</h3>
               </div>
             </div>
@@ -370,6 +369,10 @@ onMounted(() => {
   margin: 0 auto;
 }
 
+.management-card {
+  border-radius: 12px;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -443,15 +446,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.card-id {
-  font-size: 12px;
-  color: var(--text-light);
-  background: var(--bg-light, #f5f7fa);
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 500;
 }
 
 .card-name {

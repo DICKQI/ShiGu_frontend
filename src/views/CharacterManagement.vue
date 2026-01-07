@@ -1,6 +1,6 @@
 <template>
   <div class="character-management">
-    <el-card>
+    <el-card class="management-card">
       <template #header>
         <div class="card-header">
           <span>角色管理</span>
@@ -102,7 +102,6 @@
                 />
                 <div class="card-title-content">
                   <div class="card-title-row">
-                    <span class="card-id">#{{ item.id }}</span>
                     <h3 class="card-name">{{ item.name }}</h3>
                   </div>
                   <div class="card-subtitle">
@@ -181,13 +180,7 @@
         </el-form-item>
         <el-form-item label="头像">
           <div class="avatar-upload-section">
-            <el-radio-group v-model="avatarInputType" class="avatar-input-type">
-              <el-radio-button label="upload">上传图片</el-radio-button>
-              <el-radio-button label="url">输入URL</el-radio-button>
-            </el-radio-group>
-            
-            <!-- 上传图片 -->
-            <div v-if="avatarInputType === 'upload'" class="upload-section">
+            <div class="upload-section">
               <el-upload
                 v-model:file-list="avatarFileList"
                 :auto-upload="false"
@@ -204,27 +197,6 @@
               </el-upload>
               <div class="upload-tip">支持 JPG、PNG 格式，建议尺寸 200x200，将在提交时上传</div>
             </div>
-            
-            <!-- 输入URL -->
-            <div v-else class="url-section">
-              <el-input
-                v-model="formData.avatar"
-                placeholder="请输入头像URL（可选）"
-                clearable
-              >
-                <template #prepend>
-                  <el-icon><Link /></el-icon>
-                </template>
-              </el-input>
-              <div v-if="formData.avatar" class="avatar-preview-url">
-                <el-image
-                  :src="formData.avatar"
-                  fit="cover"
-                  :preview-src-list="[formData.avatar]"
-                  style="width: 100px; height: 100px; border-radius: 4px;"
-                />
-              </div>
-            </div>
           </div>
         </el-form-item>
       </el-form>
@@ -238,7 +210,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { Plus, Edit, Delete, Search, Link } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules, UploadFile, UploadFiles } from 'element-plus'
 import {
@@ -269,7 +241,6 @@ const formData = ref({
 })
 
 // 头像上传相关
-const avatarInputType = ref<'upload' | 'url'>('upload')
 const avatarFileList = ref<UploadFiles>([])
 const avatarPreview = ref<string>('')
 
@@ -355,7 +326,6 @@ const handleAdd = () => {
     avatar: null,
     gender: 'female',
   }
-  avatarInputType.value = 'upload'
   avatarFileList.value = []
   avatarPreview.value = ''
   dialogVisible.value = true
@@ -371,18 +341,8 @@ const handleEdit = (row: Character) => {
     avatar: row.avatar || null,
     gender: row.gender || 'female',
   }
-  
-  // 如果有头像URL，默认使用URL输入模式
-  if (row.avatar) {
-    avatarInputType.value = 'url'
-    avatarFileList.value = []
-    avatarPreview.value = ''
-  } else {
-    avatarInputType.value = 'upload'
-    avatarFileList.value = []
-    avatarPreview.value = ''
-  }
-  
+  avatarFileList.value = []
+  avatarPreview.value = row.avatar || ''
   dialogVisible.value = true
 }
 
@@ -454,7 +414,7 @@ const handleSubmit = async () => {
     try {
       // 如果使用上传模式且有文件，使用FormData
       const firstFile = avatarFileList.value[0]
-      if (avatarInputType.value === 'upload' && firstFile && firstFile.raw) {
+      if (firstFile && firstFile.raw) {
         const formDataObj = new FormData()
         formDataObj.append('name', formData.value.name)
         formDataObj.append('ip_id', formData.value.ip_id!.toString())
@@ -505,7 +465,6 @@ const handleDialogClose = () => {
     avatar: null,
     gender: 'female',
   }
-  avatarInputType.value = 'upload'
   avatarFileList.value = []
   avatarPreview.value = ''
 }
@@ -521,6 +480,10 @@ onMounted(async () => {
   padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.management-card {
+  border-radius: 12px;
 }
 
 .card-header {
@@ -599,16 +562,6 @@ onMounted(async () => {
 
 .card-title-content .card-title-row {
   margin-bottom: 6px;
-}
-
-.card-id {
-  font-size: 12px;
-  color: var(--text-light);
-  background: var(--bg-light, #f5f7fa);
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 500;
-  flex-shrink: 0;
 }
 
 .card-name {
