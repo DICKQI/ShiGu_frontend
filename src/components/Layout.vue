@@ -145,15 +145,16 @@ onUnmounted(() => {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 20px;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   height: 64px;
 }
 
 .brand {
   cursor: pointer;
   user-select: none;
+  justify-self: start;
 }
 
 .brand-text {
@@ -166,9 +167,9 @@ onUnmounted(() => {
 }
 
 .nav-menu {
-  flex: 1;
   display: flex;
   justify-content: center;
+  grid-column: 2;
 }
 
 .nav-menu-el {
@@ -237,6 +238,7 @@ onUnmounted(() => {
 
   .nav-menu-compact {
     justify-content: flex-end;
+    grid-column: 3;
   }
 
   .more-trigger {

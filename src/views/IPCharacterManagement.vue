@@ -119,7 +119,7 @@
           </el-table-column>
           <el-table-column label="角色数量" width="100" align="center">
             <template #default="{ row }">
-              <span class="character-count">{{ characterMap[row.id]?.length || 0 }}</span>
+              <span class="character-count">{{ row.character_count ?? (characterMap[row.id]?.length || 0) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="150" align="right" fixed="right">
@@ -141,7 +141,7 @@
             <div class="card-info">
               <div class="name-row">
                 <h3 class="name-text">{{ item.name }}</h3>
-                <span class="character-count-badge">{{ characterMap[item.id]?.length || 0 }}</span>
+                <span class="character-count-badge">{{ item.character_count ?? (characterMap[item.id]?.length || 0) }}</span>
               </div>
               <div class="keyword-row">
                 <span v-for="keyword in item.keywords || []" :key="keyword.id" class="mini-tag">
@@ -400,6 +400,7 @@ const characterDialogTitle = computed(() =>
 )
 const isEditCharacter = ref(false)
 const editingCharacterId = ref<number | null>(null)
+const editingCharacterOriginalIpId = ref<number | null>(null)
 const characterFormRef = ref<FormInstance>()
 const avatarPreview = ref('')
 const avatarFile = ref<File | null>(null)
@@ -415,6 +416,18 @@ const characterFormRules: FormRules = {
 
 const getGenderLabel = (g: CharacterGender) =>
   ({ male: '男', female: '女', other: '其他' }[g] || '未知')
+
+const setIPCharacterCount = (ipId: number, count: number) => {
+  const ip = ipList.value.find((x) => x.id === ipId)
+  if (!ip) return
+  ip.character_count = count
+}
+
+const syncIPCharacterCountFromMap = (ipId: number) => {
+  const list = characterMap.value[ipId]
+  if (!list) return
+  setIPCharacterCount(ipId, list.length)
+}
 
 // 获取IP列表
 const fetchIPList = async () => {
@@ -441,9 +454,12 @@ const fetchIPCharacters = async (ipId: number) => {
   try {
     const data = await getIPCharacters(ipId)
     characterMap.value[ipId] = data
+    // 已经加载到真实角色列表时，用列表长度同步一次计数（无需点开也能看到）
+    syncIPCharacterCountFromMap(ipId)
   } catch (err: any) {
     ElMessage.error(err.message || '加载角色失败')
     characterMap.value[ipId] = []
+    syncIPCharacterCountFromMap(ipId)
   } finally {
     characterLoadingMap.value[ipId] = false
   }
@@ -563,6 +579,7 @@ const handleSubmitIP = async () => {
 const handleAddCharacter = () => {
   isEditCharacter.value = false
   editingCharacterId.value = null
+  editingCharacterOriginalIpId.value = null
   characterFormData.value = { name: '', ip_id: null, gender: 'female' }
   avatarPreview.value = ''
   avatarFile.value = null
@@ -572,6 +589,7 @@ const handleAddCharacter = () => {
 const handleAddCharacterForIP = (ip: IP) => {
   isEditCharacter.value = false
   editingCharacterId.value = null
+  editingCharacterOriginalIpId.value = null
   characterFormData.value = { name: '', ip_id: ip.id, gender: 'female' }
   avatarPreview.value = ''
   avatarFile.value = null
@@ -581,6 +599,7 @@ const handleAddCharacterForIP = (ip: IP) => {
 const handleEditCharacter = (row: Character) => {
   isEditCharacter.value = true
   editingCharacterId.value = row.id
+  editingCharacterOriginalIpId.value = row.ip.id
   characterFormData.value = {
     name: row.name,
     ip_id: row.ip.id,
@@ -604,6 +623,10 @@ const handleDeleteCharacter = async (row: Character) => {
     )
     await deleteCharacter(row.id)
     ElMessage.success('已删除')
+    // 未展开情况下也能即时看到数量变化（最终会被 fetchIPCharacters 的 sync 覆盖为最准）
+    if (ipList.value.find((x) => x.id === row.ip.id)?.character_count != null) {
+      setIPCharacterCount(row.ip.id, Math.max(0, (ipList.value.find((x) => x.id === row.ip.id)?.character_count || 0) - 1))
+    }
     // 刷新该IP的角色列表
     if (characterMap.value[row.ip.id]) {
       delete characterMap.value[row.ip.id]
@@ -633,26 +656,54 @@ const handleSubmitCharacter = async () => {
       data.append('gender', characterFormData.value.gender)
       if (avatarFile.value) data.append('avatar', avatarFile.value)
 
-      const ipId = characterFormData.value.ip_id!
+      const newIpId = characterFormData.value.ip_id!
+      const oldIpId = editingCharacterOriginalIpId.value
       if (isEditCharacter.value && editingCharacterId.value) {
         await updateCharacter(editingCharacterId.value, data)
-        // 刷新该IP的角色列表
-        if (characterMap.value[ipId]) {
-          delete characterMap.value[ipId]
-          await fetchIPCharacters(ipId)
+        // 如果编辑时变更了所属IP，需要同步旧IP与新IP的角色列表/数量
+        if (oldIpId && oldIpId !== newIpId) {
+          // 旧IP：若已加载过角色列表就重新拉取；否则至少先把计数 -1（避免一直显示旧值）
+          if (characterMap.value[oldIpId]) {
+            delete characterMap.value[oldIpId]
+            await fetchIPCharacters(oldIpId)
+          } else if (ipList.value.find((x) => x.id === oldIpId)?.character_count != null) {
+            setIPCharacterCount(
+              oldIpId,
+              Math.max(0, (ipList.value.find((x) => x.id === oldIpId)?.character_count || 0) - 1)
+            )
+          }
+
+          // 新IP：若已加载过角色列表就重新拉取；否则先把计数 +1
+          if (characterMap.value[newIpId]) {
+            delete characterMap.value[newIpId]
+            await fetchIPCharacters(newIpId)
+          } else if (ipList.value.find((x) => x.id === newIpId)?.character_count != null) {
+            setIPCharacterCount(newIpId, (ipList.value.find((x) => x.id === newIpId)?.character_count || 0) + 1)
+          }
+        } else {
+          // 刷新该IP的角色列表（如果已展开/加载过）
+          if (characterMap.value[newIpId]) {
+            delete characterMap.value[newIpId]
+            await fetchIPCharacters(newIpId)
+          }
         }
       } else {
         await createCharacter(data)
         // 如果是新增角色，刷新对应IP的角色列表
-        delete characterMap.value[ipId]
-        await fetchIPCharacters(ipId)
+        delete characterMap.value[newIpId]
+        // 未展开情况下也能即时看到数量变化（最终会被 fetchIPCharacters 的 sync 覆盖为最准）
+        if (ipList.value.find((x) => x.id === newIpId)?.character_count != null) {
+          setIPCharacterCount(newIpId, (ipList.value.find((x) => x.id === newIpId)?.character_count || 0) + 1)
+        }
+        await fetchIPCharacters(newIpId)
         // 如果是移动端，确保IP是展开状态
-        if (!expandedIPs.value.includes(ipId)) {
-          expandedIPs.value.push(ipId)
+        if (!expandedIPs.value.includes(newIpId)) {
+          expandedIPs.value.push(newIpId)
         }
       }
       ElMessage.success('保存成功')
       characterDialogVisible.value = false
+      editingCharacterOriginalIpId.value = null
     } catch (err: any) {
       ElMessage.error(err.message || '操作失败')
     } finally {

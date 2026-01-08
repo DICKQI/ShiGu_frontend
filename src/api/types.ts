@@ -23,6 +23,10 @@ export interface IP {
   name: string
   short_name?: string
   keywords?: IPKeyword[]
+  /**
+   * 该 IP 下的角色数量（后端 /api/ips/ 列表接口返回）
+   */
+  character_count?: number
 }
 
 // 角色性别类型
