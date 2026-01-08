@@ -40,9 +40,14 @@ export function getCharacterList(params?: { ip?: number; name?: string; search?:
   return request.get<Character[]>('/api/characters/', { params })
 }
 
-// 根据IP获取角色列表
+// 根据IP获取角色列表（通过 /api/characters/?ip=id）
 export function getCharactersByIP(ipId: number) {
   return request.get<Character[]>(`/api/characters/?ip=${ipId}`)
+}
+
+// 获取IP下的所有角色（使用专用接口 /api/ips/{id}/characters/）
+export function getIPCharacters(ipId: number) {
+  return request.get<Character[]>(`/api/ips/${ipId}/characters/`)
 }
 
 // 获取角色详情

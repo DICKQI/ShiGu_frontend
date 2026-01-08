@@ -1,0 +1,1143 @@
+<template>
+  <div class="ip-character-management-container">
+    <!-- 顶部操作区 -->
+    <div class="header-section">
+      <div class="title-wrapper">
+        <h2 class="page-title">IP作品与角色管理</h2>
+        <span class="sub-title">管理您的作品分类及其角色</span>
+      </div>
+      <div class="header-actions">
+        <el-button class="add-btn" type="primary" @click="handleAddIP">
+          <el-icon><Plus /></el-icon>
+          <span>新增作品</span>
+        </el-button>
+        <el-button class="add-btn" type="success" @click="handleAddCharacter">
+          <el-icon><Plus /></el-icon>
+          <span>新增角色</span>
+        </el-button>
+      </div>
+    </div>
+
+    <!-- 搜索与筛选卡片 -->
+    <el-card class="search-card" shadow="never">
+      <div class="search-flex">
+        <el-input
+          v-model="searchText"
+          placeholder="搜索作品名称或关键词..."
+          clearable
+          @clear="handleSearch"
+          @keyup.enter="handleSearch"
+          class="custom-search"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+        <el-button class="search-btn" type="primary" @click="handleSearch">搜索</el-button>
+      </div>
+    </el-card>
+
+    <!-- 内容展示区 -->
+    <div v-loading="loading" class="content-body">
+      <!-- PC端：精致的表格 -->
+      <div class="desktop-view">
+        <el-table
+          :data="ipList"
+          border-radius="12"
+          style="width: 100%"
+          @expand-change="handleTableExpandChange"
+        >
+          <el-table-column type="expand" width="50">
+            <template #default="{ row }">
+              <div class="character-expand-section">
+                <div class="expand-header">
+                  <span class="expand-title">角色列表</span>
+                  <el-button
+                    size="small"
+                    type="primary"
+                    text
+                    @click="handleAddCharacterForIP(row)"
+                  >
+                    <el-icon><Plus /></el-icon>
+                    为该IP添加角色
+                  </el-button>
+                </div>
+                <div v-loading="characterLoadingMap[row.id]" class="character-content">
+                  <template v-if="characterMap[row.id]?.length">
+                    <div
+                      v-for="char in characterMap[row.id]"
+                      :key="char.id"
+                      class="character-row"
+                    >
+                      <div class="char-info-row">
+                        <el-avatar :size="40" :src="char.avatar || undefined" shape="square" class="char-avatar table-avatar">
+                          <el-icon><UserFilled /></el-icon>
+                        </el-avatar>
+                        <div class="char-details">
+                          <span class="char-name">{{ char.name }}</span>
+                          <span :class="['gender-badge', char.gender]">
+                            {{ getGenderLabel(char.gender) }}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="char-actions">
+                        <el-button link type="primary" @click="handleEditCharacter(char)">编辑</el-button>
+                        <span class="action-divider" />
+                        <el-button link type="danger" @click="handleDeleteCharacter(char)">删除</el-button>
+                      </div>
+                    </div>
+                  </template>
+                  <el-empty
+                    v-else-if="!characterLoadingMap[row.id]"
+                    description="该作品下暂无角色"
+                    :image-size="80"
+                  />
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="name" label="作品名称" min-width="180">
+            <template #default="{ row }">
+              <span class="table-name">{{ row.name }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="检索关键词" min-width="250">
+            <template #default="{ row }">
+              <div class="tag-group">
+                <el-tag
+                  v-for="keyword in row.keywords || []"
+                  :key="keyword.id"
+                  effect="plain"
+                  round
+                  size="small"
+                  class="custom-tag"
+                >
+                  {{ keyword.value }}
+                </el-tag>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="角色数量" width="100" align="center">
+            <template #default="{ row }">
+              <span class="character-count">{{ characterMap[row.id]?.length || 0 }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="150" align="right" fixed="right">
+            <template #default="{ row }">
+              <div class="action-inline">
+                <el-button link type="primary" @click="handleEditIP(row)">编辑</el-button>
+                <span class="action-divider" />
+                <el-button link type="danger" @click="handleDeleteIP(row)">删除</el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- 移动端：现代化卡片 -->
+      <div class="mobile-view">
+        <div v-for="item in ipList" :key="item.id" class="ip-card-item">
+          <div class="card-main" @click="toggleExpand(item.id)">
+            <div class="card-info">
+              <div class="name-row">
+                <h3 class="name-text">{{ item.name }}</h3>
+                <span class="character-count-badge">{{ characterMap[item.id]?.length || 0 }}</span>
+              </div>
+              <div class="keyword-row">
+                <span v-for="keyword in item.keywords || []" :key="keyword.id" class="mini-tag">
+                  {{ keyword.value }}
+                </span>
+                <span v-if="!item.keywords?.length" class="no-tag">暂无关键词</span>
+              </div>
+            </div>
+            <div class="card-arrow">
+              <el-icon :class="{ rotated: expandedIPs.includes(item.id) }">
+                <ArrowRight />
+              </el-icon>
+            </div>
+          </div>
+
+          <!-- 展开的角色列表 -->
+          <div
+            v-if="expandedIPs.includes(item.id)"
+            v-loading="characterLoadingMap[item.id]"
+            class="character-list"
+          >
+            <div class="character-list-header">
+              <span>角色列表</span>
+              <el-button
+                size="small"
+                type="primary"
+                text
+                @click.stop="handleAddCharacterForIP(item)"
+              >
+                <el-icon><Plus /></el-icon>
+                添加角色
+              </el-button>
+            </div>
+            <template v-if="characterMap[item.id]?.length">
+              <div
+                v-for="char in characterMap[item.id]"
+                :key="char.id"
+                class="character-card"
+              >
+                <el-avatar :size="50" :src="char.avatar || undefined" shape="square" class="char-avatar">
+                  <el-icon><UserFilled /></el-icon>
+                </el-avatar>
+                <div class="char-info">
+                  <div class="name-line">
+                    <span class="name">{{ char.name }}</span>
+                    <span :class="['gender-badge', char.gender]">
+                      {{ getGenderLabel(char.gender) }}
+                    </span>
+                  </div>
+                </div>
+                <div class="char-actions-mobile">
+                  <el-button
+                    size="small"
+                    text
+                    type="primary"
+                    @click.stop="handleEditCharacter(char)"
+                  >
+                    <el-icon><Edit /></el-icon>
+                  </el-button>
+                  <el-button
+                    size="small"
+                    text
+                    type="danger"
+                    @click.stop="handleDeleteCharacter(char)"
+                  >
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+              </div>
+            </template>
+            <el-empty v-else description="暂无角色" :image-size="60" />
+          </div>
+
+          <div class="card-footer">
+            <div class="footer-action" @click.stop="handleEditIP(item)">
+              <el-icon><Edit /></el-icon>编辑作品
+            </div>
+            <div class="footer-action delete" @click.stop="handleDeleteIP(item)">
+              <el-icon><Delete /></el-icon>删除作品
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <el-empty v-if="!loading && ipList.length === 0" description="没有找到相关的作品" />
+    </div>
+
+    <!-- IP编辑弹窗 -->
+    <el-dialog
+      v-model="ipDialogVisible"
+      :title="ipDialogTitle"
+      width="90%"
+      class="custom-dialog"
+      align-center
+    >
+      <el-form :model="ipFormData" :rules="ipFormRules" ref="ipFormRef" label-position="top">
+        <el-form-item label="作品官方全称" prop="name">
+          <el-input v-model="ipFormData.name" placeholder="例如：崩坏：星穹铁道" />
+        </el-form-item>
+        <el-form-item label="关联关键词 (别名/缩写)">
+          <div class="keyword-manager-box">
+            <div class="input-inline">
+              <el-input
+                v-model="newKeyword"
+                placeholder="输入别名后点添加"
+                @keyup.enter="handleAddKeyword"
+              >
+                <template #append>
+                  <el-button @click="handleAddKeyword">添加</el-button>
+                </template>
+              </el-input>
+            </div>
+            <div class="tags-wrapper">
+              <el-tag
+                v-for="(keyword, index) in ipFormData.keywords"
+                :key="index"
+                closable
+                round
+                @close="handleRemoveKeyword(index)"
+              >
+                {{ keyword }}
+              </el-tag>
+            </div>
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="ipDialogVisible = false">取消</el-button>
+          <el-button type="primary" class="submit-btn" @click="handleSubmitIP" :loading="submitting">
+            保存更改
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 角色编辑弹窗 -->
+    <el-dialog
+      v-model="characterDialogVisible"
+      :title="characterDialogTitle"
+      width="90%"
+      class="custom-dialog"
+      align-center
+    >
+      <el-form
+        :model="characterFormData"
+        :rules="characterFormRules"
+        ref="characterFormRef"
+        label-position="top"
+      >
+        <div class="form-layout">
+          <div class="avatar-col">
+            <el-upload
+              class="avatar-uploader"
+              :auto-upload="false"
+              :show-file-list="false"
+              @change="handleAvatarFileChange"
+            >
+              <img v-if="avatarPreview" :src="avatarPreview" class="preview-img" />
+              <el-icon v-else class="uploader-icon"><Plus /></el-icon>
+              <div class="upload-label">修改头像</div>
+            </el-upload>
+          </div>
+          <div class="info-col">
+            <el-form-item label="角色名称" prop="name">
+              <el-input v-model="characterFormData.name" placeholder="输入角色名" />
+            </el-form-item>
+            <el-form-item label="所属作品" prop="ip_id">
+              <el-select
+                v-model="characterFormData.ip_id"
+                placeholder="选择所属IP"
+                filterable
+                style="width: 100%"
+              >
+                <el-option v-for="ip in ipList" :key="ip.id" :label="ip.name" :value="ip.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="性别" prop="gender">
+              <el-radio-group v-model="characterFormData.gender" class="custom-radio">
+                <el-radio-button value="female">女</el-radio-button>
+                <el-radio-button value="male">男</el-radio-button>
+                <el-radio-button value="other">其他</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+          </div>
+        </div>
+      </el-form>
+      <template #footer>
+        <el-button @click="characterDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          class="submit-btn"
+          @click="handleSubmitCharacter"
+          :loading="submitting"
+        >
+          保存信息
+        </el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import {
+  Plus,
+  Edit,
+  Delete,
+  Search,
+  ArrowRight,
+  UserFilled,
+} from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance, FormRules, UploadFile } from 'element-plus'
+import {
+  getIPList,
+  getIPDetail,
+  createIP,
+  updateIP,
+  deleteIP,
+  getIPCharacters,
+  createCharacter,
+  updateCharacter,
+  deleteCharacter,
+} from '@/api/metadata'
+import type { IP, Character, CharacterGender } from '@/api/types'
+
+// 状态管理
+const loading = ref(false)
+const submitting = ref(false)
+const searchText = ref('')
+const ipList = ref<IP[]>([])
+const characterMap = ref<Record<number, Character[]>>({})
+const characterLoadingMap = ref<Record<number, boolean>>({})
+const expandedIPs = ref<number[]>([])
+
+// IP相关
+const ipDialogVisible = ref(false)
+const ipDialogTitle = computed(() => (isEditIP.value ? '📝 编辑作品资料' : '✨ 新增IP作品'))
+const isEditIP = ref(false)
+const editingIPId = ref<number | null>(null)
+const ipFormRef = ref<FormInstance>()
+const newKeyword = ref('')
+const ipFormData = ref({
+  name: '',
+  keywords: [] as string[],
+})
+const ipFormRules: FormRules = {
+  name: [{ required: true, message: '请输入作品名称', trigger: 'blur' }],
+}
+
+// 角色相关
+const characterDialogVisible = ref(false)
+const characterDialogTitle = computed(() =>
+  isEditCharacter.value ? '🎭 编辑角色资料' : '✨ 迎接新角色'
+)
+const isEditCharacter = ref(false)
+const editingCharacterId = ref<number | null>(null)
+const characterFormRef = ref<FormInstance>()
+const avatarPreview = ref('')
+const avatarFile = ref<File | null>(null)
+const characterFormData = ref({
+  name: '',
+  ip_id: null as number | null,
+  gender: 'female' as CharacterGender,
+})
+const characterFormRules: FormRules = {
+  name: [{ required: true, message: '请输入角色名', trigger: 'blur' }],
+  ip_id: [{ required: true, message: '请选择所属IP', trigger: 'change' }],
+}
+
+const getGenderLabel = (g: CharacterGender) =>
+  ({ male: '男', female: '女', other: '其他' }[g] || '未知')
+
+// 获取IP列表
+const fetchIPList = async () => {
+  loading.value = true
+  try {
+    const data = await getIPList({ search: searchText.value.trim() || undefined })
+    ipList.value = data
+    // 清空角色映射和展开状态
+    characterMap.value = {}
+    expandedIPs.value = []
+  } catch (err: any) {
+    ElMessage.error(err.message || '加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 获取IP下的角色列表
+const fetchIPCharacters = async (ipId: number) => {
+  if (characterLoadingMap.value[ipId]) return
+  if (characterMap.value[ipId]) return // 已加载过，不再重复加载
+
+  characterLoadingMap.value[ipId] = true
+  try {
+    const data = await getIPCharacters(ipId)
+    characterMap.value[ipId] = data
+  } catch (err: any) {
+    ElMessage.error(err.message || '加载角色失败')
+    characterMap.value[ipId] = []
+  } finally {
+    characterLoadingMap.value[ipId] = false
+  }
+}
+
+// 切换展开状态
+const toggleExpand = async (ipId: number) => {
+  const index = expandedIPs.value.indexOf(ipId)
+  if (index > -1) {
+    expandedIPs.value.splice(index, 1)
+  } else {
+    expandedIPs.value.push(ipId)
+    await fetchIPCharacters(ipId)
+  }
+}
+
+// 表格展开时加载角色
+const handleTableExpandChange = async (row: IP, expandedRows: IP[]) => {
+  // 检查该行是否在展开列表中
+  const isExpanded = expandedRows.some((r) => r.id === row.id)
+  if (isExpanded) {
+    await fetchIPCharacters(row.id)
+  }
+}
+
+const handleSearch = () => fetchIPList()
+
+// IP相关操作
+const handleAddIP = () => {
+  isEditIP.value = false
+  editingIPId.value = null
+  ipFormData.value = { name: '', keywords: [] }
+  newKeyword.value = ''
+  ipDialogVisible.value = true
+}
+
+const handleEditIP = async (row: IP) => {
+  isEditIP.value = true
+  editingIPId.value = row.id
+  try {
+    const detail = await getIPDetail(row.id)
+    ipFormData.value = {
+      name: detail.name,
+      keywords: detail.keywords?.map((k) => k.value) || [],
+    }
+  } catch {
+    ipFormData.value = {
+      name: row.name,
+      keywords: row.keywords?.map((k) => k.value) || [],
+    }
+  }
+  newKeyword.value = ''
+  ipDialogVisible.value = true
+}
+
+const handleDeleteIP = async (row: IP) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除作品《${row.name}》吗？这将导致关联的角色数据丢失。`,
+      '警告',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '点错了',
+        type: 'warning',
+        buttonSize: 'default',
+      }
+    )
+    await deleteIP(row.id)
+    ElMessage.success('已安全删除')
+    // 清除该IP的角色映射
+    delete characterMap.value[row.id]
+    fetchIPList()
+  } catch {}
+}
+
+const handleAddKeyword = () => {
+  const val = newKeyword.value.trim()
+  if (!val) return
+  if (ipFormData.value.keywords.includes(val)) return ElMessage.warning('关键词已存在')
+  ipFormData.value.keywords.push(val)
+  newKeyword.value = ''
+}
+
+const handleRemoveKeyword = (index: number) => {
+  ipFormData.value.keywords.splice(index, 1)
+}
+
+const handleSubmitIP = async () => {
+  if (!ipFormRef.value) return
+  await ipFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    submitting.value = true
+    try {
+      const data = { name: ipFormData.value.name, keywords: ipFormData.value.keywords }
+      if (isEditIP.value && editingIPId.value) {
+        await updateIP(editingIPId.value, data)
+        // 如果编辑的是已展开的IP，刷新角色列表
+        if (expandedIPs.value.includes(editingIPId.value)) {
+          delete characterMap.value[editingIPId.value]
+          await fetchIPCharacters(editingIPId.value)
+        }
+      } else {
+        await createIP(data)
+      }
+      ElMessage.success('操作成功')
+      ipDialogVisible.value = false
+      fetchIPList()
+    } catch (err: any) {
+      ElMessage.error(err.message || '操作失败')
+    } finally {
+      submitting.value = false
+    }
+  })
+}
+
+// 角色相关操作
+const handleAddCharacter = () => {
+  isEditCharacter.value = false
+  editingCharacterId.value = null
+  characterFormData.value = { name: '', ip_id: null, gender: 'female' }
+  avatarPreview.value = ''
+  avatarFile.value = null
+  characterDialogVisible.value = true
+}
+
+const handleAddCharacterForIP = (ip: IP) => {
+  isEditCharacter.value = false
+  editingCharacterId.value = null
+  characterFormData.value = { name: '', ip_id: ip.id, gender: 'female' }
+  avatarPreview.value = ''
+  avatarFile.value = null
+  characterDialogVisible.value = true
+}
+
+const handleEditCharacter = (row: Character) => {
+  isEditCharacter.value = true
+  editingCharacterId.value = row.id
+  characterFormData.value = {
+    name: row.name,
+    ip_id: row.ip.id,
+    gender: row.gender,
+  }
+  avatarPreview.value = row.avatar || ''
+  avatarFile.value = null
+  characterDialogVisible.value = true
+}
+
+const handleDeleteCharacter = async (row: Character) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除角色《${row.name}》吗？关联的谷子数据也会受到影响。`,
+      '警告',
+      {
+        type: 'warning',
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+      }
+    )
+    await deleteCharacter(row.id)
+    ElMessage.success('已删除')
+    // 刷新该IP的角色列表
+    if (characterMap.value[row.ip.id]) {
+      delete characterMap.value[row.ip.id]
+      await fetchIPCharacters(row.ip.id)
+    }
+  } catch {}
+}
+
+const handleAvatarFileChange = (file: UploadFile) => {
+  if (file.raw) {
+    avatarFile.value = file.raw
+    const reader = new FileReader()
+    reader.onload = (e) => (avatarPreview.value = e.target?.result as string)
+    reader.readAsDataURL(file.raw)
+  }
+}
+
+const handleSubmitCharacter = async () => {
+  if (!characterFormRef.value) return
+  await characterFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    submitting.value = true
+    try {
+      const data = new FormData()
+      data.append('name', characterFormData.value.name)
+      data.append('ip_id', String(characterFormData.value.ip_id))
+      data.append('gender', characterFormData.value.gender)
+      if (avatarFile.value) data.append('avatar', avatarFile.value)
+
+      const ipId = characterFormData.value.ip_id!
+      if (isEditCharacter.value && editingCharacterId.value) {
+        await updateCharacter(editingCharacterId.value, data)
+        // 刷新该IP的角色列表
+        if (characterMap.value[ipId]) {
+          delete characterMap.value[ipId]
+          await fetchIPCharacters(ipId)
+        }
+      } else {
+        await createCharacter(data)
+        // 如果是新增角色，刷新对应IP的角色列表
+        delete characterMap.value[ipId]
+        await fetchIPCharacters(ipId)
+        // 如果是移动端，确保IP是展开状态
+        if (!expandedIPs.value.includes(ipId)) {
+          expandedIPs.value.push(ipId)
+        }
+      }
+      ElMessage.success('保存成功')
+      characterDialogVisible.value = false
+    } catch (err: any) {
+      ElMessage.error(err.message || '操作失败')
+    } finally {
+      submitting.value = false
+    }
+  })
+}
+
+onMounted(() => fetchIPList())
+</script>
+
+<style scoped>
+/* 容器设计：参考云展柜布局 */
+.ip-character-management-container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: calc(100vh - 64px);
+}
+
+/* 顶部标题区 */
+.header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
+.sub-title {
+  font-size: 13px;
+  color: #909399;
+}
+
+/* 搜索框美化 */
+.search-card {
+  margin-bottom: 20px;
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.search-flex {
+  display: flex;
+  gap: 8px;
+}
+
+.custom-search :deep(.el-input__wrapper) {
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px #e4e7ed inset;
+}
+
+/* 品牌色按钮 */
+.add-btn,
+.search-btn,
+.submit-btn {
+  background: linear-gradient(135deg, #a396ff 0%, #8e7dff 100%);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+}
+
+.add-btn[type='success'] {
+  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+}
+
+/* PC端表格样式 */
+.desktop-view {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.table-name {
+  font-weight: 600;
+  color: #404144;
+}
+
+.custom-tag {
+  border: 1px solid #d9d4ff;
+  color: #5a4bff;
+  background: linear-gradient(135deg, #f6f4ff 0%, #ebe7ff 100%);
+  box-shadow: 0 6px 12px rgba(90, 75, 255, 0.08);
+}
+
+.tag-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+}
+
+.character-count {
+  font-weight: 600;
+  color: #606266;
+}
+
+/* 展开区域样式 */
+.character-expand-section {
+  padding: 16px;
+  background: #fafbfc;
+}
+
+.expand-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.expand-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.character-content {
+  min-height: 50px;
+}
+
+.character-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #f2f6fc;
+}
+
+.char-info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.char-avatar {
+  border: 1px solid #e4e7ed;
+}
+
+.table-avatar {
+  flex-shrink: 0;
+}
+
+.char-details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.char-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.gender-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.gender-badge.female {
+  background: #fff0f0;
+  color: #f56c6c;
+}
+
+.gender-badge.male {
+  background: #ecf5ff;
+  color: #409eff;
+}
+
+.gender-badge.other {
+  background: #f0f0f0;
+  color: #909399;
+}
+
+.char-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.action-divider {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  background: #e4e7ed;
+}
+
+.action-inline {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* 移动端现代化卡片设计 */
+.mobile-view {
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ip-card-item {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s;
+}
+
+.ip-card-item:active {
+  transform: scale(0.98);
+}
+
+.card-main {
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.name-text {
+  margin: 0;
+  font-size: 17px;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.character-count-badge {
+  font-size: 12px;
+  background: linear-gradient(135deg, #a396ff 0%, #8e7dff 100%);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.keyword-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mini-tag {
+  font-size: 11px;
+  background: linear-gradient(135deg, #f6f4ff 0%, #ebe7ff 100%);
+  color: #5a4bff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #d9d4ff;
+}
+
+.no-tag {
+  font-size: 12px;
+  color: #c0c4cc;
+  font-style: italic;
+}
+
+.card-arrow {
+  color: #c0c4cc;
+  transition: transform 0.3s;
+}
+
+.card-arrow .rotated {
+  transform: rotate(90deg);
+}
+
+/* 角色列表展开区域（移动端） */
+.character-list {
+  padding: 12px 16px;
+  background: #fafbfc;
+  border-top: 1px solid #f2f6fc;
+}
+
+.character-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.character-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #f2f6fc;
+}
+
+.character-card .char-info {
+  flex: 1;
+}
+
+.name-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.name {
+  font-size: 15px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.char-actions-mobile {
+  display: flex;
+  gap: 4px;
+}
+
+/* 卡片操作底部 */
+.card-footer {
+  display: flex;
+  border-top: 1px solid #f2f6fc;
+  background: #fafbfc;
+}
+
+.footer-action {
+  flex: 1;
+  text-align: center;
+  padding: 10px 0;
+  font-size: 13px;
+  color: #606266;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.footer-action:not(:last-child) {
+  border-right: 1px solid #f2f6fc;
+}
+
+.footer-action.delete {
+  color: #f56c6c;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .desktop-view {
+    display: none;
+  }
+  .mobile-view {
+    display: flex;
+  }
+  .header-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .header-actions {
+    width: 100%;
+  }
+  .header-actions .add-btn {
+    flex: 1;
+  }
+  .page-title {
+    font-size: 18px;
+  }
+  .add-btn span {
+    display: inline;
+  }
+}
+
+/* 弹窗与关键词管理 */
+.keyword-manager-box {
+  background: #f8f9fc;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px dashed #dcdfe6;
+}
+
+.input-inline {
+  margin-bottom: 12px;
+}
+
+.tags-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.custom-dialog :deep(.el-dialog__header) {
+  margin-right: 0;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f2f6fc;
+}
+
+.custom-dialog :deep(.el-dialog__body) {
+  padding-top: 20px;
+}
+
+/* 角色表单布局 */
+.form-layout {
+  display: flex;
+  gap: 24px;
+}
+
+.avatar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.info-col {
+  flex: 1;
+}
+
+.avatar-uploader {
+  width: 120px;
+  height: 120px;
+  border: 1px dashed #dcdfe6;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  background: #f8f9fc;
+}
+
+.preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.uploader-icon {
+  font-size: 28px;
+  color: #8c939d;
+}
+
+.upload-label {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 11px;
+  text-align: center;
+  padding: 4px 0;
+}
+
+.custom-radio :deep(.el-radio-button__inner) {
+  border-radius: 8px !important;
+  margin-right: 8px;
+  border: 1px solid #dcdfe6 !important;
+}
+
+@media (max-width: 768px) {
+  .form-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+</style>

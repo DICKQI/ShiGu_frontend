@@ -23,20 +23,21 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
-    path: '/ip',
-    name: 'IPManagement',
-    component: () => import('@/views/IPManagement.vue'),
+    path: '/ipcharacter',
+    name: 'IPCharacterManagement',
+    component: () => import('@/views/IPCharacterManagement.vue'),
     meta: {
-      title: 'IP作品管理',
+      title: 'IP作品与角色管理',
     },
+  },
+  // 兼容旧路径，重定向到新路径
+  {
+    path: '/ip',
+    redirect: '/ipcharacter',
   },
   {
     path: '/character',
-    name: 'CharacterManagement',
-    component: () => import('@/views/CharacterManagement.vue'),
-    meta: {
-      title: '角色管理',
-    },
+    redirect: '/ipcharacter',
   },
   {
     path: '/category',

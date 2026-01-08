@@ -22,13 +22,9 @@
               <el-icon><FolderOpened /></el-icon>
               <span>位置管理</span>
             </el-menu-item>
-            <el-menu-item index="/ip">
+            <el-menu-item index="/ipcharacter">
               <el-icon><Collection /></el-icon>
-              <span>IP作品管理</span>
-            </el-menu-item>
-            <el-menu-item index="/character">
-              <el-icon><User /></el-icon>
-              <span>角色管理</span>
+              <span>IP作品与角色</span>
             </el-menu-item>
             <el-menu-item index="/category">
               <el-icon><Box /></el-icon>
@@ -54,13 +50,9 @@
                   <el-icon><FolderOpened /></el-icon>
                   <span>位置管理</span>
                 </el-dropdown-item>
-                <el-dropdown-item @click="handleMenuSelect('/ip')">
+                <el-dropdown-item @click="handleMenuSelect('/ipcharacter')">
                   <el-icon><Collection /></el-icon>
-                  <span>IP作品管理</span>
-                </el-dropdown-item>
-                <el-dropdown-item @click="handleMenuSelect('/character')">
-                  <el-icon><User /></el-icon>
-                  <span>角色管理</span>
+                  <span>IP作品与角色</span>
                 </el-dropdown-item>
                 <el-dropdown-item @click="handleMenuSelect('/category')">
                   <el-icon><Box /></el-icon>
@@ -99,8 +91,7 @@ const activeMenu = computed(() => {
   const path = route.path
   if (path.startsWith('/showcase')) return '/showcase'
   if (path.startsWith('/location')) return '/location'
-  if (path.startsWith('/ip')) return '/ip'
-  if (path.startsWith('/character')) return '/character'
+  if (path.startsWith('/ipcharacter') || path.startsWith('/ip') || path.startsWith('/character')) return '/ipcharacter'
   if (path.startsWith('/category')) return '/category'
   return '/showcase'
 })
