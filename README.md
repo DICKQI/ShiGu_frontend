@@ -37,6 +37,32 @@
 | 🎨 **视觉体验** | 香槟镭射主题设计，精致的交互细节，流畅的动画效果 |
 | 📱 **响应式设计** | PC 端表格展示，移动端卡片展示，完美适配不同设备 |
 
+### 界面总览
+
+<div align="center">
+
+<div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+
+<div>
+
+![PC端首页展示](screenshot/PC端首页展示.jpeg)
+
+*PC 端云展柜主界面*
+
+</div>
+
+<div>
+
+![移动端首页展示](screenshot/移动端首页展示.jpeg)
+
+*移动端云展柜主界面*
+
+</div>
+
+</div>
+
+</div>
+
 ---
 
 ## 🚀 快速开始
@@ -210,6 +236,44 @@ ShiGu_vue/
 - `GoodsCard.vue` - 谷子卡片组件
 - `GoodsDrawer.vue` - 详情抽屉组件
 
+**界面展示**：
+
+<div align="center">
+
+#### PC 端界面
+
+![PC端首页展示](screenshot/PC端首页展示.jpeg)
+
+*PC 端云展柜主界面 - 网格展示与多维筛选*
+
+</div>
+
+<div align="center">
+
+#### 移动端界面
+
+<div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+
+<div>
+
+![移动端首页展示](screenshot/移动端首页展示.jpeg)
+
+*移动端首页 - 卡片式展示*
+
+</div>
+
+<div>
+
+![移动端首页筛选](screenshot/移动端首页筛选.jpeg)
+
+*移动端筛选面板 - 多维筛选器*
+
+</div>
+
+</div>
+
+</div>
+
 ---
 
 ### 📍 位置管理（Location Management）
@@ -250,6 +314,32 @@ ShiGu_vue/
 - `PUT /api/goods/{id}/` - 更新谷子
 - `POST /api/goods/{id}/upload-main-photo/` - 上传主图
 
+**界面展示**：
+
+<div align="center">
+
+<div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+
+<div>
+
+![PC端新增谷子](screenshot/PC端新增谷子.jpeg)
+
+*PC 端资产录入表单*
+
+</div>
+
+<div>
+
+![移动端新增谷子](screenshot/移动端新增谷子.jpeg)
+
+*移动端资产录入表单 - 响应式布局*
+
+</div>
+
+</div>
+
+</div>
+
 ---
 
 ### 🎭 IP作品与角色管理（IP & Character Management）
@@ -278,6 +368,66 @@ ShiGu_vue/
 - `POST /api/bgm/search-characters/` - 搜索 Bangumi 作品并获取角色列表
 - `POST /api/bgm/create-characters/` - 批量创建 IP 和角色
 
+**界面展示**：
+
+<div align="center">
+
+#### PC 端界面
+
+![PC端IP管理](screenshot/PC端IP管理.jpeg)
+
+*PC 端 IP 作品与角色管理 - 表格展示与展开/折叠*
+
+</div>
+
+<div align="center">
+
+#### 移动端界面
+
+<div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+
+<div>
+
+![移动端IP管理](screenshot/移动端IP管理.jpeg)
+
+*移动端 IP 管理 - 卡片式展示*
+
+</div>
+
+<div>
+
+![移动端IP与角色展示](screenshot/移动端IP与角色展示.jpeg)
+
+*移动端角色列表展示 - 展开查看角色详情*
+
+</div>
+
+</div>
+
+#### BGM 批量导入流程展示
+
+<div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+
+<div>
+
+![移动端bgm搜索IP](screenshot/移动端bgm搜索IP.jpeg)
+
+*步骤 1：搜索 Bangumi 作品*
+
+</div>
+
+<div>
+
+![移动端bgm导入角色](screenshot/移动端bgm导入角色.jpeg)
+
+*步骤 2：选择角色并批量导入*
+
+</div>
+
+</div>
+
+</div>
+
 ---
 
 ### 📦 品类管理（Category Management）
@@ -291,6 +441,16 @@ ShiGu_vue/
 | 📋 **列表展示** | 表格形式展示品类列表 | Element Plus Table |
 | 🔍 **搜索功能** | 按品类名称搜索 | 前端过滤或后端查询 |
 | ✏️ **CRUD 操作** | 支持品类的增删改操作 | RESTful API + 表单校验 |
+
+**界面展示**：
+
+<div align="center">
+
+![移动端品类管理](screenshot/移动端品类管理.jpeg)
+
+*移动端品类管理界面 - 表格展示与搜索功能*
+
+</div>
 
 ---
 
