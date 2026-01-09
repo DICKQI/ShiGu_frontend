@@ -148,6 +148,7 @@ export interface BGMCreateCharacterItem {
   ip_name: string
   character_name: string
   subject_type?: number | null
+  avatar?: string | null
 }
 
 // BGM创建角色响应项

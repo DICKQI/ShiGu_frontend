@@ -561,7 +561,15 @@
       >
         <div class="form-layout">
           <div class="avatar-col">
+            <div class="avatar-mode-switch">
+              <el-radio-group v-model="avatarInputMode" size="small" class="mode-radio-group">
+                <el-radio-button value="upload">上传文件</el-radio-button>
+                <el-radio-button value="url">输入URL</el-radio-button>
+              </el-radio-group>
+            </div>
+            <!-- 文件上传模式 -->
             <el-upload
+              v-if="avatarInputMode === 'upload'"
               class="avatar-uploader"
               :auto-upload="false"
               :show-file-list="false"
@@ -569,8 +577,24 @@
             >
               <img v-if="avatarPreview" :src="avatarPreview" class="preview-img" />
               <el-icon v-else class="uploader-icon"><Plus /></el-icon>
-              <div class="upload-label">修改头像</div>
+              <div class="upload-label">点击上传</div>
             </el-upload>
+            <!-- URL输入模式 -->
+            <div v-else class="avatar-url-input">
+              <el-input
+                v-model="avatarUrlInput"
+                placeholder="输入头像图片URL"
+                clearable
+                @input="handleAvatarUrlInput"
+              >
+                <template #prefix>
+                  <el-icon><Link /></el-icon>
+                </template>
+              </el-input>
+              <div v-if="avatarPreview" class="url-preview">
+                <img :src="avatarPreview" class="preview-img" alt="头像预览" />
+              </div>
+            </div>
           </div>
           <div class="info-col">
             <el-form-item label="角色名称" prop="name">
@@ -627,6 +651,7 @@ import {
   Refresh,
   ArrowDown, // 新增
   Collection, // 新增
+  Link, // 新增：URL输入图标
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules, UploadFile } from 'element-plus'
@@ -720,6 +745,8 @@ const editingCharacterOriginalIpId = ref<number | null>(null)
 const characterFormRef = ref<FormInstance>()
 const avatarPreview = ref('')
 const avatarFile = ref<File | null>(null)
+const avatarInputMode = ref<'upload' | 'url'>('upload') // 头像输入模式：上传文件或URL
+const avatarUrlInput = ref('') // URL输入框的值
 const characterFormData = ref({
   name: '',
   ip_id: null as number | null,
@@ -981,6 +1008,8 @@ const handleAddCharacter = () => {
   characterFormData.value = { name: '', ip_id: null, gender: 'other' }
   avatarPreview.value = ''
   avatarFile.value = null
+  avatarUrlInput.value = ''
+  avatarInputMode.value = 'upload' // 默认使用上传模式
   characterDialogVisible.value = true
 }
 
@@ -991,6 +1020,8 @@ const handleAddCharacterForIP = (ip: IP) => {
   characterFormData.value = { name: '', ip_id: ip.id, gender: 'other' }
   avatarPreview.value = ''
   avatarFile.value = null
+  avatarUrlInput.value = ''
+  avatarInputMode.value = 'upload' // 默认使用上传模式
   characterDialogVisible.value = true
 }
 
@@ -1003,7 +1034,25 @@ const handleEditCharacter = (row: Character) => {
     ip_id: row.ip.id,
     gender: row.gender,
   }
-  avatarPreview.value = row.avatar || ''
+  // 根据现有头像判断输入模式
+  if (row.avatar) {
+    // 如果已有头像，判断是URL还是本地文件路径
+    // 如果是http/https开头，认为是URL，否则可能是本地路径（也按URL处理）
+    if (row.avatar.startsWith('http://') || row.avatar.startsWith('https://')) {
+      avatarInputMode.value = 'url'
+      avatarUrlInput.value = row.avatar
+      avatarPreview.value = row.avatar
+    } else {
+      // 本地路径也按URL处理（后端会返回完整URL）
+      avatarInputMode.value = 'url'
+      avatarUrlInput.value = row.avatar
+      avatarPreview.value = row.avatar
+    }
+  } else {
+    avatarInputMode.value = 'upload'
+    avatarUrlInput.value = ''
+    avatarPreview.value = ''
+  }
   avatarFile.value = null
   characterDialogVisible.value = true
 }
@@ -1036,9 +1085,28 @@ const handleDeleteCharacter = async (row: Character) => {
 const handleAvatarFileChange = (file: UploadFile) => {
   if (file.raw) {
     avatarFile.value = file.raw
+    avatarUrlInput.value = '' // 清空URL输入
     const reader = new FileReader()
     reader.onload = (e) => (avatarPreview.value = e.target?.result as string)
     reader.readAsDataURL(file.raw)
+  }
+}
+
+// 处理URL输入
+const handleAvatarUrlInput = (value: string) => {
+  avatarUrlInput.value = value
+  if (value.trim()) {
+    // 验证URL格式
+    try {
+      new URL(value.trim())
+      avatarPreview.value = value.trim()
+      avatarFile.value = null // 清空文件
+    } catch {
+      // URL格式无效，不更新预览
+      avatarPreview.value = ''
+    }
+  } else {
+    avatarPreview.value = ''
   }
 }
 
@@ -1048,11 +1116,28 @@ const handleSubmitCharacter = async () => {
     if (!valid) return
     submitting.value = true
     try {
-      const data = new FormData()
-      data.append('name', characterFormData.value.name)
-      data.append('ip_id', String(characterFormData.value.ip_id))
-      data.append('gender', characterFormData.value.gender)
-      if (avatarFile.value) data.append('avatar', avatarFile.value)
+      // 根据输入模式选择发送FormData或JSON
+      let data: FormData | { name: string; ip_id: number; gender: CharacterGender; avatar?: string | null }
+      
+      if (avatarInputMode.value === 'upload' && avatarFile.value) {
+        // 文件上传模式：使用FormData
+        const formData = new FormData()
+        formData.append('name', characterFormData.value.name)
+        formData.append('ip_id', String(characterFormData.value.ip_id))
+        formData.append('gender', characterFormData.value.gender)
+        formData.append('avatar', avatarFile.value)
+        data = formData
+      } else {
+        // URL模式或没有头像：使用JSON
+        data = {
+          name: characterFormData.value.name,
+          ip_id: characterFormData.value.ip_id!,
+          gender: characterFormData.value.gender,
+          avatar: avatarInputMode.value === 'url' && avatarUrlInput.value.trim() 
+            ? avatarUrlInput.value.trim() 
+            : null,
+        }
+      }
 
       const newIpId = characterFormData.value.ip_id!
       const oldIpId = editingCharacterOriginalIpId.value
@@ -1190,6 +1275,8 @@ const handleBGMConfirmImport = async () => {
       .map((char) => ({
         ip_name: result.ip_name,
         character_name: char.name,
+        // 传递头像URL（如果存在）
+        avatar: char.avatar || null,
       }))
 
     // 如果用户选择了作品类型，将其传递给创建接口
@@ -1801,6 +1888,64 @@ const handleBGMClose = () => {
   font-size: 11px;
   text-align: center;
   padding: 4px 0;
+}
+
+/* 头像输入模式切换 */
+.avatar-mode-switch {
+  margin-bottom: 12px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.mode-radio-group {
+  width: 100%;
+}
+
+.mode-radio-group :deep(.el-radio-button) {
+  flex: 1;
+}
+
+.mode-radio-group :deep(.el-radio-button__inner) {
+  width: 100%;
+  border-radius: 8px !important;
+}
+
+.mode-radio-group :deep(.el-radio-button:first-child .el-radio-button__inner) {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.mode-radio-group :deep(.el-radio-button:last-child .el-radio-button__inner) {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+/* URL输入模式 */
+.avatar-url-input {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.url-preview {
+  width: 120px;
+  height: 120px;
+  border: 1px dashed #dcdfe6;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f8f9fc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.url-preview .preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .custom-radio :deep(.el-radio-button__inner) {
