@@ -44,20 +44,41 @@
 
     <!-- 搜索与筛选卡片 -->
     <el-card class="search-card" shadow="never">
-      <div class="search-flex">
-        <el-input
-          v-model="searchText"
-          placeholder="搜索作品名称或关键词..."
-          clearable
-          @clear="handleSearch"
-          @keyup.enter="handleSearch"
-          class="custom-search"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-        <el-button class="search-btn" type="primary" @click="handleSearch">搜索</el-button>
+      <div class="search-filter-container">
+        <div class="search-flex">
+          <el-input
+            v-model="searchText"
+            placeholder="搜索作品名称或关键词..."
+            clearable
+            @clear="handleSearch"
+            @keyup.enter="handleSearch"
+            class="custom-search"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+          <el-button class="search-btn" type="primary" @click="handleSearch">搜索</el-button>
+        </div>
+        <div class="filter-flex">
+          <el-select
+            v-model="selectedSubjectTypes"
+            placeholder="筛选作品类型（可多选）"
+            multiple
+            clearable
+            collapse-tags
+            collapse-tags-tooltip
+            @change="handleSearch"
+            class="filter-select"
+            style="width: 100%"
+          >
+            <el-option label="书籍" :value="1" />
+            <el-option label="动画" :value="2" />
+            <el-option label="音乐" :value="3" />
+            <el-option label="游戏" :value="4" />
+            <el-option label="三次元/特摄" :value="6" />
+          </el-select>
+        </div>
       </div>
     </el-card>
 
@@ -123,6 +144,14 @@
           <el-table-column prop="name" label="作品名称" min-width="180">
             <template #default="{ row }">
               <span class="table-name">{{ row.name }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="作品类型" width="120" align="center">
+            <template #default="{ row }">
+              <el-tag v-if="row.subject_type" size="small" :type="getSubjectTypeTagType(row.subject_type)">
+                {{ getSubjectTypeLabel(row.subject_type) }}
+              </el-tag>
+              <span v-else class="no-type">-</span>
             </template>
           </el-table-column>
           <el-table-column label="检索关键词" min-width="250">
@@ -271,6 +300,20 @@
         <el-form-item label="作品官方全称" prop="name">
           <el-input v-model="ipFormData.name" placeholder="例如：崩坏：星穹铁道" />
         </el-form-item>
+        <el-form-item label="作品类型">
+          <el-select
+            v-model="ipFormData.subject_type"
+            placeholder="选择作品类型（可选）"
+            clearable
+            style="width: 100%"
+          >
+            <el-option label="书籍" :value="1" />
+            <el-option label="动画" :value="2" />
+            <el-option label="音乐" :value="3" />
+            <el-option label="游戏" :value="4" />
+            <el-option label="三次元/特摄" :value="6" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="关联关键词 (别名/缩写)">
           <div class="keyword-manager-box">
             <div class="input-inline">
@@ -333,6 +376,22 @@
                   <el-icon><Search /></el-icon>
                 </template>
               </el-input>
+            </el-form-item>
+            <el-form-item label="作品类型（可选）">
+              <el-select
+                v-model="bgmSubjectType"
+                placeholder="选择作品类型（不选则搜索所有类型）"
+                clearable
+                :disabled="bgmSearching"
+                style="width: 100%"
+              >
+                <el-option label="所有类型" :value="undefined" />
+                <el-option label="书籍" :value="1" />
+                <el-option label="动画" :value="2" />
+                <el-option label="音乐" :value="3" />
+                <el-option label="游戏" :value="4" />
+                <el-option label="三次元/特摄" :value="6" />
+              </el-select>
             </el-form-item>
             <div class="bgm-search-actions">
               <el-button type="primary" @click="handleBGMSearch" :loading="bgmSearching" :disabled="!bgmSearchInput.trim()">
@@ -628,6 +687,7 @@ const bgmDialogWidth = computed(() => {
 const loading = ref(false)
 const submitting = ref(false)
 const searchText = ref('')
+const selectedSubjectTypes = ref<number[]>([])
 const ipList = ref<IP[]>([])
 const characterMap = ref<Record<number, Character[]>>({})
 const characterLoadingMap = ref<Record<number, boolean>>({})
@@ -643,6 +703,7 @@ const newKeyword = ref('')
 const ipFormData = ref({
   name: '',
   keywords: [] as string[],
+  subject_type: null as number | null,
 })
 const ipFormRules: FormRules = {
   name: [{ required: true, message: '请输入作品名称', trigger: 'blur' }],
@@ -674,6 +735,7 @@ const bgmDialogVisible = ref(false)
 type BGMStep = 'search' | 'searching' | 'results' | 'importing' | 'imported'
 const bgmStep = ref<BGMStep>('search')
 const bgmSearchInput = ref('')
+const bgmSubjectType = ref<number | undefined>(undefined)
 const bgmSearching = ref(false)
 const bgmCharacterKeyword = ref('')
 const bgmSearchResult = ref<BGMSearchResponse | null>(null)
@@ -683,6 +745,32 @@ const bgmImportResult = ref<BGMCreateCharactersResponse | null>(null)
 
 const getGenderLabel = (g: CharacterGender) =>
   ({ male: '男', female: '女', other: '其他' }[g] || '未知')
+
+// 获取作品类型标签
+const getSubjectTypeLabel = (type: number | null | undefined) => {
+  if (!type) return ''
+  const map: Record<number, string> = {
+    1: '书籍',
+    2: '动画',
+    3: '音乐',
+    4: '游戏',
+    6: '三次元/特摄',
+  }
+  return map[type] || '未知'
+}
+
+// 获取作品类型标签颜色
+const getSubjectTypeTagType = (type: number | null | undefined): '' | 'success' | 'info' | 'warning' | 'danger' => {
+  if (!type) return ''
+  const map: Record<number, '' | 'success' | 'info' | 'warning' | 'danger'> = {
+    1: 'warning', // 书籍 - 黄色
+    2: 'success', // 动画 - 绿色
+    3: 'info',    // 音乐 - 蓝色
+    4: 'danger',  // 游戏 - 红色
+    6: '',        // 三次元/特摄 - 默认
+  }
+  return map[type] || ''
+}
 
 const setIPCharacterCount = (ipId: number, count: number) => {
   const ip = ipList.value.find((x) => x.id === ipId)
@@ -715,7 +803,25 @@ const handleActionCommand = (command: string) => {
 const fetchIPList = async () => {
   loading.value = true
   try {
-    const data = await getIPList({ search: searchText.value.trim() || undefined })
+    const params: { search?: string; subject_type?: number; subject_type__in?: string } = {}
+    
+    // 搜索关键词
+    if (searchText.value.trim()) {
+      params.search = searchText.value.trim()
+    }
+    
+    // 作品类型筛选
+    if (selectedSubjectTypes.value.length > 0) {
+      if (selectedSubjectTypes.value.length === 1) {
+        // 单个类型使用精确匹配
+        params.subject_type = selectedSubjectTypes.value[0]
+      } else {
+        // 多个类型使用subject_type__in
+        params.subject_type__in = selectedSubjectTypes.value.join(',')
+      }
+    }
+    
+    const data = await getIPList(params)
     ipList.value = data
     // 清空角色映射和展开状态
     characterMap.value = {}
@@ -777,7 +883,7 @@ const handleRefresh = () => {
 const handleAddIP = () => {
   isEditIP.value = false
   editingIPId.value = null
-  ipFormData.value = { name: '', keywords: [] }
+  ipFormData.value = { name: '', keywords: [], subject_type: null }
   newKeyword.value = ''
   ipDialogVisible.value = true
 }
@@ -790,11 +896,13 @@ const handleEditIP = async (row: IP) => {
     ipFormData.value = {
       name: detail.name,
       keywords: detail.keywords?.map((k) => k.value) || [],
+      subject_type: detail.subject_type ?? null,
     }
   } catch {
     ipFormData.value = {
       name: row.name,
       keywords: row.keywords?.map((k) => k.value) || [],
+      subject_type: row.subject_type ?? null,
     }
   }
   newKeyword.value = ''
@@ -839,7 +947,11 @@ const handleSubmitIP = async () => {
     if (!valid) return
     submitting.value = true
     try {
-      const data = { name: ipFormData.value.name, keywords: ipFormData.value.keywords }
+      const data = { 
+        name: ipFormData.value.name, 
+        keywords: ipFormData.value.keywords,
+        subject_type: ipFormData.value.subject_type ?? null,
+      }
       if (isEditIP.value && editingIPId.value) {
         await updateIP(editingIPId.value, data)
         // 如果编辑的是已展开的IP，刷新角色列表
@@ -1007,7 +1119,8 @@ const handleOpenBGMImport = () => {
 const handleBGMReset = () => {
   bgmStep.value = 'search'
   bgmSearchInput.value = ''
-   bgmCharacterKeyword.value = ''
+  bgmSubjectType.value = undefined
+  bgmCharacterKeyword.value = ''
   bgmSearchResult.value = null
   bgmSelectedCharacters.value = []
   bgmImportResult.value = null
@@ -1024,7 +1137,7 @@ const handleBGMSearch = async () => {
   bgmStep.value = 'searching'
 
   try {
-    const result = await searchBGMCharacters(ipName)
+    const result = await searchBGMCharacters(ipName, bgmSubjectType.value)
     bgmSearchResult.value = result
     bgmCharacterKeyword.value = ''
     bgmSelectedCharacters.value = [] // 重置选择
@@ -1079,7 +1192,8 @@ const handleBGMConfirmImport = async () => {
         character_name: char.name,
       }))
 
-    const createResult = await createBGMCharacters(charactersToImport)
+    // 如果用户选择了作品类型，将其传递给创建接口
+    const createResult = await createBGMCharacters(charactersToImport, bgmSubjectType.value)
     bgmImportResult.value = createResult
     bgmStep.value = 'imported'
 
@@ -1188,9 +1302,25 @@ const handleBGMClose = () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
+.search-filter-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .search-flex {
   display: flex;
   gap: 8px;
+}
+
+.filter-flex {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.filter-select {
+  flex: 1;
 }
 
 .custom-search :deep(.el-input__wrapper) {
@@ -1281,6 +1411,11 @@ const handleBGMClose = () => {
 .character-count {
   font-weight: 600;
   color: #606266;
+}
+
+.no-type {
+  color: #c0c4cc;
+  font-style: italic;
 }
 
 /* 展开区域样式 */
@@ -1416,6 +1551,10 @@ const handleBGMClose = () => {
   display: flex;
   align-items: baseline;
   gap: 8px;
+  margin-bottom: 8px;
+}
+
+.type-row {
   margin-bottom: 8px;
 }
 
@@ -1567,6 +1706,19 @@ const handleBGMClose = () => {
 
   .page-title {
     font-size: 18px;
+  }
+
+  .search-filter-container {
+    gap: 10px;
+  }
+
+  .search-flex,
+  .filter-flex {
+    flex-direction: column;
+  }
+
+  .filter-select {
+    width: 100% !important;
   }
 }
 

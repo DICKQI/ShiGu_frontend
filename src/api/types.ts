@@ -24,6 +24,10 @@ export interface IP {
   short_name?: string
   keywords?: IPKeyword[]
   /**
+   * 作品类型：1=书籍, 2=动画, 3=音乐, 4=游戏, 6=三次元/特摄
+   */
+  subject_type?: number | null
+  /**
    * 该 IP 下的角色数量（后端 /api/ips/ 列表接口返回）
    */
   character_count?: number
@@ -143,6 +147,7 @@ export interface BGMSearchResponse {
 export interface BGMCreateCharacterItem {
   ip_name: string
   character_name: string
+  subject_type?: number | null
 }
 
 // BGM创建角色响应项

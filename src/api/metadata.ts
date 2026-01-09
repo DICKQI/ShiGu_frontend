@@ -4,7 +4,12 @@ import type { IP, Character, Category } from './types'
 // ==================== IP作品 CRUD ====================
 
 // 获取所有IP列表
-export function getIPList(params?: { name?: string; search?: string }) {
+export function getIPList(params?: { 
+  name?: string
+  search?: string
+  subject_type?: number
+  subject_type__in?: string
+}) {
   return request.get<IP[]>('/api/ips/', { params })
 }
 
@@ -14,17 +19,17 @@ export function getIPDetail(id: number) {
 }
 
 // 创建IP
-export function createIP(data: { name: string; keywords?: string[] }) {
+export function createIP(data: { name: string; keywords?: string[]; subject_type?: number | null }) {
   return request.post<IP>('/api/ips/', data)
 }
 
 // 更新IP
-export function updateIP(id: number, data: { name: string; keywords?: string[] }) {
+export function updateIP(id: number, data: { name: string; keywords?: string[]; subject_type?: number | null }) {
   return request.put<IP>(`/api/ips/${id}/`, data)
 }
 
 // 部分更新IP
-export function patchIP(id: number, data: Partial<{ name: string; keywords?: string[] }>) {
+export function patchIP(id: number, data: Partial<{ name: string; keywords?: string[]; subject_type?: number | null }>) {
   return request.patch<IP>(`/api/ips/${id}/`, data)
 }
 
@@ -112,16 +117,21 @@ export function deleteCategory(id: number) {
 import type { BGMSearchResponse, BGMCreateCharactersResponse, BGMCreateCharacterItem } from './types'
 
 // 搜索BGM IP作品并获取角色列表
-export function searchBGMCharacters(ipName: string) {
+export function searchBGMCharacters(ipName: string, subjectType?: number) {
   return request.post<BGMSearchResponse>('/api/bgm/search-characters/', {
     ip_name: ipName,
+    ...(subjectType !== undefined && { subject_type: subjectType }),
   })
 }
 
 // 批量创建IP和角色
-export function createBGMCharacters(characters: BGMCreateCharacterItem[]) {
+export function createBGMCharacters(characters: BGMCreateCharacterItem[], subjectType?: number | null) {
+  // 根据API文档，subject_type应该在每个character项中传递
+  const charactersWithType = subjectType !== undefined && subjectType !== null
+    ? characters.map(char => ({ ...char, subject_type: subjectType }))
+    : characters
   return request.post<BGMCreateCharactersResponse>('/api/bgm/create-characters/', {
-    characters,
+    characters: charactersWithType,
   })
 }
 
