@@ -18,6 +18,12 @@
     "lint": "eslint . --fix --cache"
   },
   "dependencies": {
+    "@capacitor-community/http": "^1.4.1",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/network": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0",
     "@element-plus/icons-vue": "^2.3.1",
     "axios": "^1.7.7",
     "element-plus": "^2.8.8",
