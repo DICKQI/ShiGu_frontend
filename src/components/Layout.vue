@@ -32,6 +32,17 @@
             </el-menu-item>
           </el-menu>
         </div>
+        <!-- 设置按钮（PC端和移动端都显示） -->
+        <div class="nav-actions">
+          <el-button
+            text
+            :class="{ 'settings-active': route.path === '/settings' }"
+            @click="goToSettings"
+            class="settings-btn"
+          >
+            <el-icon><Setting /></el-icon>
+          </el-button>
+        </div>
       </div>
     </nav>
 
@@ -59,7 +70,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Grid, FolderOpened, Plus, Collection, Box, Refresh, Loading } from '@element-plus/icons-vue'
+import { Grid, FolderOpened, Plus, Collection, Box, Refresh, Loading, Setting } from '@element-plus/icons-vue'
 import { useGuziStore } from '@/stores/guzi'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar } from '@capacitor/status-bar'
@@ -90,6 +101,10 @@ const handleMenuSelect = (index: string) => {
 
 const goHome = () => {
   router.push('/showcase')
+}
+
+const goToSettings = () => {
+  router.push('/settings')
 }
 
 // 仅在云展柜页面显示“新增谷子”悬浮按钮
@@ -231,6 +246,22 @@ onUnmounted(() => {
 .nav-actions {
   display: flex;
   gap: 12px;
+  justify-self: end;
+}
+
+.settings-btn {
+  font-size: 20px;
+  color: var(--text-dark);
+  padding: 8px;
+  transition: color 0.2s ease;
+}
+
+.settings-btn:hover {
+  color: var(--primary-gold);
+}
+
+.settings-btn.settings-active {
+  color: var(--primary-gold);
 }
 
 .main-content {
@@ -309,10 +340,20 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .navbar-content {
     padding: 0 12px;
+    grid-template-columns: 1fr auto;
   }
 
   .brand-text {
     font-size: 20px;
+  }
+
+  .nav-actions {
+    justify-self: end;
+  }
+
+  .settings-btn {
+    font-size: 22px;
+    padding: 6px;
   }
 
   .fab-group {

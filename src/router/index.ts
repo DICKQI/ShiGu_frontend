@@ -63,6 +63,14 @@ const routes: RouteRecordRaw[] = [
       title: '编辑谷子',
     },
   },
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('@/views/Settings.vue'),
+    meta: {
+      title: '设置',
+    },
+  },
 ]
 
 const router = createRouter({
