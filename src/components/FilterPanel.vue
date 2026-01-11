@@ -382,6 +382,10 @@ onUnmounted(() => {})
     grid-template-columns: 1fr;
     gap: 16px;
   }
+
+  .status-group {
+    margin-left: 4px;
+  }
 }
 
 /* 状态按钮样式，保持与之前单选按钮风格一致 */

@@ -1,7 +1,7 @@
 <template>
   <div class="layout">
     <!-- 顶部导航栏 -->
-    <nav class="navbar">
+    <nav ref="navbarRef" class="navbar" :class="{ 'navbar-native': isNativePlatform }">
       <div class="navbar-content">
         <div class="brand" @click="goHome">
           <span class="brand-text">✦ 拾谷 ShiGu</span>
@@ -32,46 +32,19 @@
             </el-menu-item>
           </el-menu>
         </div>
-
-        <!-- 窄屏下：折叠为“更多 ...”下拉菜单 -->
-        <div class="nav-menu nav-menu-compact" v-else>
-          <el-dropdown trigger="click">
-            <span class="more-trigger">
-              <el-icon><MoreFilled /></el-icon>
-              <span class="more-text">更多</span>
-            </span>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item @click="handleMenuSelect('/showcase')">
-                  <el-icon><Grid /></el-icon>
-                  <span>云展柜</span>
-                </el-dropdown-item>
-                <el-dropdown-item @click="handleMenuSelect('/location')">
-                  <el-icon><FolderOpened /></el-icon>
-                  <span>位置管理</span>
-                </el-dropdown-item>
-                <el-dropdown-item @click="handleMenuSelect('/ipcharacter')">
-                  <el-icon><Collection /></el-icon>
-                  <span>IP作品与角色</span>
-                </el-dropdown-item>
-                <el-dropdown-item @click="handleMenuSelect('/category')">
-                  <el-icon><Box /></el-icon>
-                  <span>品类管理</span>
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
       </div>
     </nav>
 
     <!-- 主要内容区 -->
-    <main class="main-content">
+    <main class="main-content" :class="{ 'has-bottom-nav': isMobile }">
       <router-view />
     </main>
 
+    <!-- 移动端底部导航栏 -->
+    <MobileBottomNav v-if="isMobile" />
+
     <!-- 悬浮按钮组（仅云展柜页面展示） -->
-    <div v-if="showFab" class="fab-group">
+    <div v-if="showFab" class="fab-group" :class="{ 'fab-mobile': isMobile }">
       <div class="fab-btn refresh-fab" @click="handleRefresh" :class="{ loading: refreshLoading }">
         <el-icon v-if="!refreshLoading"><Refresh /></el-icon>
         <el-icon v-else class="is-loading"><Loading /></el-icon>
@@ -86,8 +59,11 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Grid, FolderOpened, Plus, Collection, User, Box, MoreFilled, Refresh, Loading } from '@element-plus/icons-vue'
+import { Grid, FolderOpened, Plus, Collection, Box, Refresh, Loading } from '@element-plus/icons-vue'
 import { useGuziStore } from '@/stores/guzi'
+import { Capacitor } from '@capacitor/core'
+import { StatusBar } from '@capacitor/status-bar'
+import MobileBottomNav from './MobileBottomNav.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -95,6 +71,9 @@ const guziStore = useGuziStore()
 
 const isMobile = ref(window.innerWidth < 768)
 const refreshLoading = ref(false)
+const isNativePlatform = ref(Capacitor.isNativePlatform())
+const statusBarHeight = ref(0)
+const navbarRef = ref<HTMLElement | null>(null)
 
 const activeMenu = computed(() => {
   const path = route.path
@@ -136,6 +115,31 @@ const handleResize = () => {
 
 onMounted(() => {
   window.addEventListener('resize', handleResize)
+  
+  // 在原生平台上，尝试获取状态栏高度并设置 padding（作为 CSS env() 的后备方案）
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+    // 延迟检查，确保 Capacitor 和状态栏已完全初始化
+    setTimeout(() => {
+      // 检查 safe-area-inset-top 是否可用且有效
+      const safeAreaTop = getComputedStyle(document.documentElement)
+        .getPropertyValue('env(safe-area-inset-top)')
+      
+      // 如果 safe-area-inset-top 不可用或为 0，使用 JavaScript 设置默认值
+      // 这主要作为后备方案，因为 Capacitor 通常会自动设置 safe-area-inset-top
+      if (!safeAreaTop || safeAreaTop === '0px' || safeAreaTop.trim() === '') {
+        // Android 状态栏的标准高度通常是 24dp
+        // 根据设备像素比调整（高DPI设备可能需要更大的值）
+        const defaultStatusBarHeight = window.devicePixelRatio >= 3 ? 28 : 
+                                      window.devicePixelRatio >= 2 ? 26 : 24
+        statusBarHeight.value = defaultStatusBarHeight
+        
+        // 直接设置 padding-top 作为后备方案
+        if (navbarRef.value) {
+          navbarRef.value.style.paddingTop = `${defaultStatusBarHeight}px`
+        }
+      }
+    }, 100) // 延迟 100ms 确保初始化完成
+  }
 })
 
 onUnmounted(() => {
@@ -158,6 +162,18 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 1000;
+}
+
+/* 在 Capacitor 原生环境中，为导航栏添加状态栏高度的 padding-top */
+.navbar-native {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* 如果浏览器不支持 safe-area-inset-top，则不应用 padding */
+@supports not (padding-top: env(safe-area-inset-top)) {
+  .navbar-native {
+    padding-top: 0;
+  }
 }
 
 .navbar-content {
@@ -220,6 +236,17 @@ onUnmounted(() => {
 .main-content {
   flex: 1;
   min-height: calc(100vh - 64px);
+}
+
+.main-content.has-bottom-nav {
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+}
+
+/* 兼容不支持 safe-area-inset-bottom 的环境 */
+@supports not (padding-bottom: env(safe-area-inset-bottom)) {
+  .main-content.has-bottom-nav {
+    padding-bottom: 64px;
+  }
 }
 
 .fab-group {
@@ -288,38 +315,20 @@ onUnmounted(() => {
     font-size: 20px;
   }
 
-  .nav-menu-compact {
-    justify-content: flex-end;
-    grid-column: 3;
-  }
-
-  .more-trigger {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 8px 12px;
-    border-radius: 999px;
-    cursor: pointer;
-    color: var(--text-dark);
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    background-color: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-    transition: all var(--transition-fast);
-  }
-
-  .more-trigger:hover {
-    color: var(--primary-gold);
-    border-color: rgba(212, 175, 55, 0.4);
-    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
-  }
-
-  .more-text {
-    font-size: 14px;
-  }
-
   .fab-group {
     bottom: 20px;
     right: 20px;
+  }
+
+  .fab-group.fab-mobile {
+    bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+
+  /* 兼容不支持 safe-area-inset-bottom 的环境 */
+  @supports not (bottom: env(safe-area-inset-bottom)) {
+    .fab-group.fab-mobile {
+      bottom: 84px;
+    }
   }
 
   .fab-btn {
