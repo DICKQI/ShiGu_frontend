@@ -1,5 +1,6 @@
 <template>
   <div class="category-management-container">
+    <!-- ================= 顶部区域 ================= -->
     <div class="header-section">
       <div class="title-wrapper">
         <h2 class="page-title">品类管理</h2>
@@ -28,9 +29,10 @@
         <el-button class="search-btn" type="primary" @click="handleSearch">搜索</el-button>
       </div>
     </el-card>
+    <!-- ================= 顶部区域结束 ================= -->
 
     <div v-loading="loading" class="content-body">
-      <!-- 统一使用简洁列表/表格 -->
+      <!-- 下拉刷新容器 -->
       <div 
         class="category-list-wrapper pull-refresh-wrapper"
         ref="scrollContainerRef"
@@ -51,30 +53,57 @@
 
         <!-- 内容区域 -->
         <div class="category-list-inner" :style="{ transform: `translateY(${pullDistance}px)` }">
-          <el-table :data="categoryList" style="width: 100%">
-          <el-table-column prop="id" label="ID" width="80" align="center" class-name="id-column" />
-          <el-table-column prop="name" label="品类名称">
-            <template #default="{ row }">
-              <div class="category-item-name">
-                <el-icon class="folder-icon"><CollectionTag /></el-icon>
-                <span>{{ row.name }}</span>
+          
+          <!-- 【PC端视图】 -->
+          <div class="hidden-xs-only">
+            <el-table :data="categoryList" style="width: 100%" class="pc-table">
+              <el-table-column prop="id" label="ID" width="80" align="center" class-name="id-column" />
+              <el-table-column prop="name" label="品类名称">
+                <template #default="{ row }">
+                  <div class="category-item-name">
+                    <el-icon class="folder-icon"><CollectionTag /></el-icon>
+                    <span>{{ row.name }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="150" align="right">
+                <template #default="{ row }">
+                  <div class="action-inline">
+                    <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
+                    <span class="action-divider" />
+                    <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <!-- 【移动端视图】 -->
+          <div class="visible-xs-only mobile-list-container">
+            <div 
+              v-for="item in categoryList" 
+              :key="item.id" 
+              class="mobile-card"
+              @click="openMobileActions(item)"
+            >
+              <div class="mobile-card-left">
+                <div class="icon-placeholder">
+                  <el-icon><CollectionTag /></el-icon>
+                </div>
+                <div class="card-info">
+                  <div class="card-name">{{ item.name }}</div>
+                  <div class="card-id">ID: {{ item.id }}</div>
+                </div>
               </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="150" align="right">
-            <template #default="{ row }">
-              <div class="action-inline">
-                <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
-                <span class="action-divider" />
-                <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+              <div class="mobile-card-right">
+                <el-icon><MoreFilled /></el-icon>
               </div>
-            </template>
-          </el-table-column>
-        </el-table>
+            </div>
+          </div>
+          
+          <el-empty v-if="!loading && categoryList.length === 0" description="暂无品类数据" />
         </div>
       </div>
-      
-      <el-empty v-if="!loading && categoryList.length === 0" />
     </div>
 
     <!-- 刷新按钮 - 右下角悬浮（仅PC端） -->
@@ -95,12 +124,37 @@
         <el-button type="primary" class="submit-btn" @click="handleSubmit" :loading="submitting">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 移动端底部操作面板 -->
+    <el-drawer
+      v-model="mobileDrawerVisible"
+      direction="btt"
+      :with-header="false"
+      size="auto"
+      class="mobile-action-drawer"
+    >
+      <div class="action-sheet-content">
+        <div class="sheet-header">
+          对 "{{ currentActionRow?.name }}" 进行操作
+        </div>
+        <div class="sheet-menu">
+          <div class="sheet-item" @click="handleMobileEdit">
+            <el-icon><Edit /></el-icon> 编辑品类
+          </div>
+          <div class="sheet-item danger" @click="handleMobileDelete">
+            <el-icon><Delete /></el-icon> 删除品类
+          </div>
+        </div>
+        <div class="sheet-cancel" @click="mobileDrawerVisible = false">取消</div>
+      </div>
+    </el-drawer>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { Plus, Search, CollectionTag, Refresh, Loading, Top } from '@element-plus/icons-vue'
+import { Plus, Search, CollectionTag, Refresh, Loading, Top, MoreFilled, Edit, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { getCategoryList, createCategory, updateCategory, deleteCategory } from '@/api/metadata'
@@ -119,6 +173,10 @@ const formRef = ref<FormInstance>()
 const windowWidth = ref(window.innerWidth)
 const isMobile = computed(() => windowWidth.value < 768)
 
+// 移动端操作相关
+const mobileDrawerVisible = ref(false)
+const currentActionRow = ref<Category | null>(null)
+
 const updateWindowWidth = () => {
   windowWidth.value = window.innerWidth
 }
@@ -128,16 +186,23 @@ const scrollContainerRef = ref<HTMLElement | null>(null)
 const startY = ref(0)
 const pullDistance = ref(0)
 const isRefreshing = ref(false)
-const MAX_PULL = 80       // 最大下拉距离
-const TRIGGER_DIST = 50   // 触发刷新的阈值
+const MAX_PULL = 80       
+const TRIGGER_DIST = 50   
 
-// 下拉刷新逻辑
+// ================== 核心修复逻辑开始 ==================
+
+const getScrollTop = () => {
+  return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0
+}
+
 const handleTouchStart = (e: TouchEvent) => {
-  // 如果不在移动端，或者正在刷新中，忽略
   if (!isMobile.value || isRefreshing.value) return
   
-  // 只有当滚动条在顶部时才允许触发
-  if (scrollContainerRef.value && scrollContainerRef.value.scrollTop > 0) return
+  // 核心修改：检测 window 的滚动高度，只有在页面最顶端时才记录触摸点
+  if (getScrollTop() > 0) {
+    startY.value = 0 // 确保非顶端时不记录有效起始点
+    return
+  }
 
   const firstTouch = e.touches?.[0]
   if (!firstTouch) return
@@ -145,42 +210,39 @@ const handleTouchStart = (e: TouchEvent) => {
 }
 
 const handleTouchMove = (e: TouchEvent) => {
+  // 如果起始点无效（说明开始触摸时不在顶部），直接忽略
   if (!isMobile.value || isRefreshing.value || startY.value === 0) return
   
+  // 双重保险：移动过程中如果页面被卷下去了，也不处理
+  if (getScrollTop() > 0) return
+
   const firstTouch = e.touches?.[0]
   if (!firstTouch) return
   const currentY = firstTouch.clientY
   const distance = currentY - startY.value
-  
-  // 滚动条不在顶部，不处理
-  if (scrollContainerRef.value && scrollContainerRef.value.scrollTop > 0) return
 
   if (distance > 0) {
-    // 阻止原生滚动，防止冲突
+    // 只有在确定是下拉动作，且页面在顶部时，才阻止默认行为
     if (e.cancelable) e.preventDefault()
-    
-    // 增加阻尼效果，拉得越长越难拉
     pullDistance.value = Math.min(distance * 0.4, MAX_PULL)
   } else {
     pullDistance.value = 0
   }
 }
 
+// ================== 核心修复逻辑结束 ==================
+
 const handleTouchEnd = async () => {
   if (!isMobile.value || isRefreshing.value) return
-  
   if (pullDistance.value >= TRIGGER_DIST) {
-    // 触发刷新
     isRefreshing.value = true
-    pullDistance.value = TRIGGER_DIST // 停留在加载位置
-    
+    pullDistance.value = TRIGGER_DIST 
     try {
       await fetchCategoryList()
       ElMessage.success('刷新成功')
     } catch (error) {
       ElMessage.error('刷新失败')
     } finally {
-      // 延迟一下让动画自然
       setTimeout(() => {
         isRefreshing.value = false
         pullDistance.value = 0
@@ -188,7 +250,6 @@ const handleTouchEnd = async () => {
       }, 500)
     }
   } else {
-    // 距离不够，回弹
     pullDistance.value = 0
     startY.value = 0
   }
@@ -225,6 +286,25 @@ const handleDelete = async (row: Category) => {
   } catch {}
 }
 
+const openMobileActions = (row: Category) => {
+  currentActionRow.value = row
+  mobileDrawerVisible.value = true
+}
+
+const handleMobileEdit = () => {
+  if (currentActionRow.value) {
+    handleEdit(currentActionRow.value)
+    mobileDrawerVisible.value = false
+  }
+}
+
+const handleMobileDelete = () => {
+  if (currentActionRow.value) {
+    mobileDrawerVisible.value = false
+    handleDelete(currentActionRow.value)
+  }
+}
+
 const handleSubmit = async () => {
   if (!formRef.value) return
   await formRef.value.validate(async (valid) => {
@@ -255,6 +335,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* =========== PC/通用基础样式 =========== */
 .category-management-container { 
   padding: 20px; 
   max-width: 1400px; 
@@ -263,7 +344,7 @@ onUnmounted(() => {
 }
 .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .page-title { font-size: 22px; font-weight: 600; color: #303133; margin: 0; }
-.sub-title { font-size: 13px; color: #909399; }
+.sub-title { font-size: 13px; color: #909399; margin-top: 4px; display: block; }
 
 .search-card { border-radius: 12px; border: none; margin-bottom: 20px; }
 .search-flex { display: flex; gap: 8px; }
@@ -274,27 +355,15 @@ onUnmounted(() => {
   border: none; border-radius: 8px;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.header-actions { display: flex; align-items: center; gap: 8px; }
 
+/* PC端列表外壳 */
 .category-list-wrapper { 
   background: #fff; 
   border-radius: 12px; 
-  overflow: hidden; 
   box-shadow: 0 4px 16px rgba(0,0,0,0.04);
   position: relative;
-}
-
-@media (max-width: 768px) {
-  .category-list-wrapper {
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    max-height: calc(100vh - 200px);
-  }
+  min-height: 200px;
 }
 
 .category-list-inner {
@@ -302,7 +371,7 @@ onUnmounted(() => {
   will-change: transform;
 }
 
-/* 下拉刷新相关样式 */
+/* 下拉刷新样式 */
 .pull-indicator {
   position: absolute;
   top: 0;
@@ -332,12 +401,14 @@ onUnmounted(() => {
   transition: transform 0.3s;
 }
 
-.indicator-text {
-  font-size: 14px;
-  color: #909399;
-}
+/* PC 表格样式 */
+.category-item-name { display: flex; align-items: center; gap: 10px; font-weight: 500; color: #444; }
+.folder-icon { color: #8e7dff; font-size: 18px; }
+:deep(.id-column) { color: #c0c4cc; font-family: monospace; }
+.action-inline { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.action-divider { display: inline-block; width: 1px; height: 16px; background: #e4e7ed; }
 
-/* 刷新按钮 - 右下角悬浮 */
+/* PC 刷新按钮 */
 .refresh-fab {
   position: fixed;
   bottom: 30px;
@@ -353,54 +424,161 @@ onUnmounted(() => {
   font-size: 30px;
   box-shadow: 0 4px 16px rgba(163, 150, 255, 0.4);
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: all 0.3s;
   z-index: 999;
-  outline: none;
-  -webkit-tap-highlight-color: transparent;
-  border: none;
+}
+.refresh-fab:hover { transform: scale(1.1) rotate(180deg); }
+.refresh-fab .is-loading { animation: rotate 1s linear infinite; }
+
+/* =========== 移动端适配样式 =========== */
+
+.mobile-list-container {
+  padding: 0;
+  background-color: transparent; 
+  border-radius: 0;
 }
 
-.refresh-fab:hover {
-  transform: scale(1.1) rotate(180deg);
-  box-shadow: 0 6px 20px rgba(163, 150, 255, 0.6);
+.mobile-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: all 0.2s;
+  cursor: pointer;
+  border: 1px solid #f2f3f5;
 }
 
-.refresh-fab:focus,
-.refresh-fab:active {
-  outline: none;
+.mobile-card:active {
+  background-color: #fafafa;
+  transform: scale(0.98);
 }
 
-.refresh-fab.loading {
-  cursor: not-allowed;
-  opacity: 0.8;
+.mobile-card:last-child {
+  margin-bottom: 0;
 }
 
-.refresh-fab .is-loading {
-  animation: rotate 1s linear infinite;
+.mobile-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-@keyframes rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.icon-placeholder {
+  width: 40px;
+  height: 40px;
+  background: #f0f2f5;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8e7dff;
+  font-size: 20px;
 }
 
-.category-item-name { display: flex; align-items: center; gap: 10px; font-weight: 500; color: #444; }
-.folder-icon { color: #8e7dff; font-size: 18px; }
-:deep(.id-column) { color: #c0c4cc; font-family: monospace; }
+.card-info {
+  display: flex;
+  flex-direction: column;
+}
 
+.card-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.card-id {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.mobile-card-right {
+  color: #ccc;
+  font-size: 20px;
+}
+
+/* 底部动作面板样式 */
+.action-sheet-content {
+  background: #f8f8f8;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.sheet-header {
+  padding: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #909399;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.sheet-menu {
+  background: #fff;
+}
+
+.sheet-item {
+  padding: 16px;
+  text-align: center;
+  font-size: 16px;
+  border-bottom: 1px solid #f5f5f5;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.sheet-item:active {
+  background: #f5f5f5;
+}
+
+.sheet-item.danger {
+  color: #f56c6c;
+}
+
+.sheet-cancel {
+  margin-top: 8px;
+  background: #fff;
+  padding: 16px;
+  text-align: center;
+  font-size: 16px;
+  color: #333;
+}
+
+.sheet-cancel:active {
+  background: #f5f5f5;
+}
+
+/* 响应式断点控制 */
 @media (max-width: 768px) {
+  .category-management-container { padding: 16px; }
   .add-btn span { display: none; }
-  .add-btn { width: 40px; height: 40px; border-radius: 50%; padding: 0; }
+  .add-btn { width: 40px; height: 40px; border-radius: 50%; padding: 0; justify-content: center; }
 
-  .hidden-xs-only {
-    display: none !important;
+  .sub-title { 
+    font-size: 12px; 
+    display: block; 
+    margin-top: 4px; 
+    line-height: 1.4;
+    color: #909399;
+    max-width: 260px;
+  } 
+  
+  .hidden-xs-only { display: none !important; }
+  
+  .category-list-wrapper {
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0;
+    min-height: auto;
   }
 }
 
-.action-inline { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
-.action-divider { display: inline-block; width: 1px; height: 16px; background: #e4e7ed; }
+@media (min-width: 769px) {
+  .visible-xs-only { display: none !important; }
+}
 </style>
