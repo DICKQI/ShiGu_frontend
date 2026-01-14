@@ -120,7 +120,7 @@
                         </el-avatar>
                         <div class="char-details">
                           <span class="char-name">{{ char.name }}</span>
-                          <span :class="['gender-badge', char.gender]">
+                          <span v-if="false" :class="['gender-badge', char.gender]">
                             {{ getGenderLabel(char.gender) }}
                           </span>
                         </div>
@@ -268,7 +268,7 @@
                   <div class="char-info">
                     <div class="name-line">
                       <span class="name">{{ char.name }}</span>
-                      <span :class="['gender-badge', char.gender]">
+                      <span v-if="false" :class="['gender-badge', char.gender]">
                         {{ getGenderLabel(char.gender) }}
                       </span>
                     </div>
@@ -639,7 +639,7 @@
                 <el-option v-for="ip in ipList" :key="ip.id" :label="ip.name" :value="ip.id" />
               </el-select>
             </el-form-item>
-            <el-form-item label="性别" prop="gender">
+            <el-form-item v-if="false" label="性别" prop="gender">
               <el-radio-group v-model="characterFormData.gender" class="custom-radio">
                 <el-radio-button value="female">女</el-radio-button>
                 <el-radio-button value="male">男</el-radio-button>
