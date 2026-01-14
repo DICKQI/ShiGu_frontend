@@ -7,7 +7,7 @@
         <span class="sub-title">管理您的作品分类及其角色</span>
       </div>
       
-      <!-- 修改处：合并后的操作按钮 -->
+      <!-- 合并后的操作按钮 -->
       <div class="header-actions">
         <el-dropdown trigger="click" @command="handleActionCommand">
           <el-button type="primary" class="action-dropdown-btn">
@@ -188,92 +188,121 @@
       </div>
 
       <!-- 移动端：现代化卡片 -->
-      <div class="mobile-view">
-        <div v-for="item in ipList" :key="item.id" class="ip-card-item">
-          <div class="card-main" @click="toggleExpand(item.id)">
-            <div class="card-info">
-              <div class="name-row">
-                <h3 class="name-text">{{ item.name }}</h3>
-                <span class="character-count-badge">{{ item.character_count ?? (characterMap[item.id]?.length || 0) }}</span>
-              </div>
-              <div class="keyword-row">
-                <span v-for="keyword in item.keywords || []" :key="keyword.id" class="mini-tag">
-                  {{ keyword.value }}
-                </span>
-                <span v-if="!item.keywords?.length" class="no-tag">暂无关键词</span>
-              </div>
-            </div>
-            <div class="card-arrow">
-              <el-icon :class="{ rotated: expandedIPs.includes(item.id) }">
-                <ArrowRight />
-              </el-icon>
-            </div>
+      <div 
+        class="mobile-view pull-refresh-wrapper"
+        ref="scrollContainerRef"
+        @touchstart="handleTouchStart"
+        @touchmove="handleTouchMove"
+        @touchend="handleTouchEnd"
+      >
+        <!-- 下拉加载提示区 -->
+        <!-- 修复：移除 absolute，使用相对定位挤压下方内容，配合 transition 动态控制 -->
+        <div 
+          class="pull-indicator" 
+          :style="{ 
+            height: `${pullDistance}px`, 
+            opacity: pullDistance > 0 ? 1 : 0,
+            transition: isDragging ? 'none' : 'height 0.3s cubic-bezier(0.25, 0.8, 0.5, 1)' 
+          }"
+        >
+          <div class="indicator-content">
+            <el-icon v-if="isRefreshing" class="is-loading"><Loading /></el-icon>
+            <el-icon v-else :style="{ transform: `rotate(${pullDistance > 50 ? 180 : 0}deg)` }"><Top /></el-icon>
+            <span class="indicator-text">
+              {{ isRefreshing ? '正在刷新...' : (pullDistance > 50 ? '释放刷新' : '下拉刷新') }}
+            </span>
           </div>
+        </div>
 
-          <!-- 展开的角色列表 -->
-          <div
-            v-if="expandedIPs.includes(item.id)"
-            v-loading="characterLoadingMap[item.id]"
-            class="character-list"
-          >
-            <div class="character-list-header">
-              <span>角色列表</span>
-              <el-button
-                size="small"
-                type="primary"
-                text
-                @click.stop="handleAddCharacterForIP(item)"
-              >
-                <el-icon><Plus /></el-icon>
-                添加角色
-              </el-button>
+        <!-- 内容区域 -->
+        <!-- 修复：移除 transform，让 flex 布局自然流动 -->
+        <div class="mobile-view-inner">
+          <div v-for="item in ipList" :key="item.id" class="ip-card-item">
+            <div class="card-main" @click="toggleExpand(item.id)">
+              <div class="card-info">
+                <div class="name-row">
+                  <h3 class="name-text">{{ item.name }}</h3>
+                  <span class="character-count-badge">{{ item.character_count ?? (characterMap[item.id]?.length || 0) }}</span>
+                </div>
+                <div class="keyword-row">
+                  <span v-for="keyword in item.keywords || []" :key="keyword.id" class="mini-tag">
+                    {{ keyword.value }}
+                  </span>
+                  <span v-if="!item.keywords?.length" class="no-tag">暂无关键词</span>
+                </div>
+              </div>
+              <div class="card-arrow">
+                <el-icon :class="{ rotated: expandedIPs.includes(item.id) }">
+                  <ArrowRight />
+                </el-icon>
+              </div>
             </div>
-            <template v-if="characterMap[item.id]?.length">
-              <div
-                v-for="char in characterMap[item.id]"
-                :key="char.id"
-                class="character-card"
-              >
-                <el-avatar :size="50" :src="char.avatar || undefined" shape="square" class="char-avatar">
-                  <el-icon><UserFilled /></el-icon>
-                </el-avatar>
-                <div class="char-info">
-                  <div class="name-line">
-                    <span class="name">{{ char.name }}</span>
-                    <span :class="['gender-badge', char.gender]">
-                      {{ getGenderLabel(char.gender) }}
-                    </span>
+
+            <!-- 展开的角色列表 -->
+            <div
+              v-if="expandedIPs.includes(item.id)"
+              v-loading="characterLoadingMap[item.id]"
+              class="character-list"
+            >
+              <div class="character-list-header">
+                <span>角色列表</span>
+                <el-button
+                  size="small"
+                  type="primary"
+                  text
+                  @click.stop="handleAddCharacterForIP(item)"
+                >
+                  <el-icon><Plus /></el-icon>
+                  添加角色
+                </el-button>
+              </div>
+              <template v-if="characterMap[item.id]?.length">
+                <div
+                  v-for="char in characterMap[item.id]"
+                  :key="char.id"
+                  class="character-card"
+                >
+                  <el-avatar :size="50" :src="char.avatar || undefined" shape="square" class="char-avatar">
+                    <el-icon><UserFilled /></el-icon>
+                  </el-avatar>
+                  <div class="char-info">
+                    <div class="name-line">
+                      <span class="name">{{ char.name }}</span>
+                      <span :class="['gender-badge', char.gender]">
+                        {{ getGenderLabel(char.gender) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="char-actions-mobile">
+                    <el-button
+                      size="small"
+                      text
+                      type="primary"
+                      @click.stop="handleEditCharacter(char)"
+                    >
+                      <el-icon><Edit /></el-icon>
+                    </el-button>
+                    <el-button
+                      size="small"
+                      text
+                      type="danger"
+                      @click.stop="handleDeleteCharacter(char)"
+                    >
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
                   </div>
                 </div>
-                <div class="char-actions-mobile">
-                  <el-button
-                    size="small"
-                    text
-                    type="primary"
-                    @click.stop="handleEditCharacter(char)"
-                  >
-                    <el-icon><Edit /></el-icon>
-                  </el-button>
-                  <el-button
-                    size="small"
-                    text
-                    type="danger"
-                    @click.stop="handleDeleteCharacter(char)"
-                  >
-                    <el-icon><Delete /></el-icon>
-                  </el-button>
-                </div>
-              </div>
-            </template>
-            <el-empty v-else description="暂无角色" :image-size="60" />
-          </div>
-
-          <div class="card-footer">
-            <div class="footer-action" @click.stop="handleEditIP(item)">
-              <el-icon><Edit /></el-icon>编辑作品
+              </template>
+              <el-empty v-else description="暂无角色" :image-size="60" />
             </div>
-            <div class="footer-action delete" @click.stop="handleDeleteIP(item)">
-              <el-icon><Delete /></el-icon>删除作品
+
+            <div class="card-footer">
+              <div class="footer-action" @click.stop="handleEditIP(item)">
+                <el-icon><Edit /></el-icon>编辑作品
+              </div>
+              <div class="footer-action delete" @click.stop="handleDeleteIP(item)">
+                <el-icon><Delete /></el-icon>删除作品
+              </div>
             </div>
           </div>
         </div>
@@ -282,8 +311,8 @@
       <el-empty v-if="!loading && ipList.length === 0" description="没有找到相关的作品" />
     </div>
 
-    <!-- 刷新按钮 - 右下角悬浮 -->
-    <div class="refresh-fab" @click="handleRefresh" :class="{ loading: loading }">
+    <!-- 刷新按钮 - 右下角悬浮（仅PC端） -->
+    <div class="refresh-fab hidden-xs-only" @click="handleRefresh" :class="{ loading: loading }">
       <el-icon v-if="!loading"><Refresh /></el-icon>
       <el-icon v-else class="is-loading"><Loading /></el-icon>
     </div>
@@ -649,9 +678,10 @@ import {
   Warning,
   CircleClose,
   Refresh,
-  ArrowDown, // 新增
-  Collection, // 新增
-  Link, // 新增：URL输入图标
+  ArrowDown,
+  Collection,
+  Link,
+  Top,
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules, UploadFile } from 'element-plus'
@@ -678,6 +708,7 @@ import type {
 
 // 窗口宽度响应式
 const windowWidth = ref(window.innerWidth)
+const isMobile = computed(() => windowWidth.value < 768)
 
 const updateWindowWidth = () => {
   windowWidth.value = window.innerWidth
@@ -691,6 +722,72 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', updateWindowWidth)
 })
+
+// 下拉刷新相关状态
+const scrollContainerRef = ref<HTMLElement | null>(null)
+const startY = ref(0)
+const pullDistance = ref(0)
+const isRefreshing = ref(false)
+const isDragging = ref(false) // 修复：新增拖拽状态，用于控制动画
+const MAX_PULL = 80
+const TRIGGER_DIST = 50
+
+// 下拉刷新逻辑
+const handleTouchStart = (e: TouchEvent) => {
+  if (!isMobile.value || isRefreshing.value) return
+  if (scrollContainerRef.value && scrollContainerRef.value.scrollTop > 0) return
+
+  const firstTouch = e.touches?.[0]
+  if (!firstTouch) return
+  
+  isDragging.value = true // 修复：开始拖拽
+  startY.value = firstTouch.clientY
+}
+
+const handleTouchMove = (e: TouchEvent) => {
+  // 修复：增加 isDragging 检查
+  if (!isMobile.value || isRefreshing.value || startY.value === 0 || !isDragging.value) return
+  
+  const firstTouch = e.touches?.[0]
+  if (!firstTouch) return
+  const currentY = firstTouch.clientY
+  const distance = currentY - startY.value
+  
+  if (scrollContainerRef.value && scrollContainerRef.value.scrollTop > 0) return
+
+  if (distance > 0) {
+    if (e.cancelable) e.preventDefault()
+    pullDistance.value = Math.min(distance * 0.4, MAX_PULL)
+  } else {
+    pullDistance.value = 0
+  }
+}
+
+const handleTouchEnd = async () => {
+  isDragging.value = false // 修复：结束拖拽
+  if (!isMobile.value || isRefreshing.value) return
+  
+  if (pullDistance.value >= TRIGGER_DIST) {
+    isRefreshing.value = true
+    pullDistance.value = TRIGGER_DIST
+    
+    try {
+      await fetchIPList()
+      ElMessage.success('刷新成功')
+    } catch (error) {
+      ElMessage.error('刷新失败')
+    } finally {
+      setTimeout(() => {
+        isRefreshing.value = false
+        pullDistance.value = 0
+        startY.value = 0
+      }, 500)
+    }
+  } else {
+    pullDistance.value = 0
+    startY.value = 0
+  }
+}
 
 // 弹窗宽度计算
 const dialogWidth = computed(() => {
@@ -745,8 +842,8 @@ const editingCharacterOriginalIpId = ref<number | null>(null)
 const characterFormRef = ref<FormInstance>()
 const avatarPreview = ref('')
 const avatarFile = ref<File | null>(null)
-const avatarInputMode = ref<'upload' | 'url'>('upload') // 头像输入模式：上传文件或URL
-const avatarUrlInput = ref('') // URL输入框的值
+const avatarInputMode = ref<'upload' | 'url'>('upload') 
+const avatarUrlInput = ref('') 
 const characterFormData = ref({
   name: '',
   ip_id: null as number | null,
@@ -811,7 +908,6 @@ const syncIPCharacterCountFromMap = (ipId: number) => {
   setIPCharacterCount(ipId, list.length)
 }
 
-// 顶部下拉菜单指令处理
 const handleActionCommand = (command: string) => {
   switch (command) {
     case 'bgm':
@@ -826,31 +922,22 @@ const handleActionCommand = (command: string) => {
   }
 }
 
-// 获取IP列表
 const fetchIPList = async () => {
   loading.value = true
   try {
     const params: { search?: string; subject_type?: number; subject_type__in?: string } = {}
-    
-    // 搜索关键词
     if (searchText.value.trim()) {
       params.search = searchText.value.trim()
     }
-    
-    // 作品类型筛选
     if (selectedSubjectTypes.value.length > 0) {
       if (selectedSubjectTypes.value.length === 1) {
-        // 单个类型使用精确匹配
         params.subject_type = selectedSubjectTypes.value[0]
       } else {
-        // 多个类型使用subject_type__in
         params.subject_type__in = selectedSubjectTypes.value.join(',')
       }
     }
-    
     const data = await getIPList(params)
     ipList.value = data
-    // 清空角色映射和展开状态
     characterMap.value = {}
     expandedIPs.value = []
   } catch (err: any) {
@@ -860,16 +947,14 @@ const fetchIPList = async () => {
   }
 }
 
-// 获取IP下的角色列表
 const fetchIPCharacters = async (ipId: number) => {
   if (characterLoadingMap.value[ipId]) return
-  if (characterMap.value[ipId]) return // 已加载过，不再重复加载
+  if (characterMap.value[ipId]) return
 
   characterLoadingMap.value[ipId] = true
   try {
     const data = await getIPCharacters(ipId)
     characterMap.value[ipId] = data
-    // 已经加载到真实角色列表时，用列表长度同步一次计数（无需点开也能看到）
     syncIPCharacterCountFromMap(ipId)
   } catch (err: any) {
     ElMessage.error(err.message || '加载角色失败')
@@ -880,7 +965,6 @@ const fetchIPCharacters = async (ipId: number) => {
   }
 }
 
-// 切换展开状态
 const toggleExpand = async (ipId: number) => {
   const index = expandedIPs.value.indexOf(ipId)
   if (index > -1) {
@@ -891,9 +975,7 @@ const toggleExpand = async (ipId: number) => {
   }
 }
 
-// 表格展开时加载角色
 const handleTableExpandChange = async (row: IP, expandedRows: IP[]) => {
-  // 检查该行是否在展开列表中
   const isExpanded = expandedRows.some((r) => r.id === row.id)
   if (isExpanded) {
     await fetchIPCharacters(row.id)
@@ -906,7 +988,6 @@ const handleRefresh = () => {
   fetchIPList()
 }
 
-// IP相关操作
 const handleAddIP = () => {
   isEditIP.value = false
   editingIPId.value = null
@@ -950,7 +1031,6 @@ const handleDeleteIP = async (row: IP) => {
     )
     await deleteIP(row.id)
     ElMessage.success('已安全删除')
-    // 清除该IP的角色映射
     delete characterMap.value[row.id]
     fetchIPList()
   } catch {}
@@ -981,7 +1061,6 @@ const handleSubmitIP = async () => {
       }
       if (isEditIP.value && editingIPId.value) {
         await updateIP(editingIPId.value, data)
-        // 如果编辑的是已展开的IP，刷新角色列表
         if (expandedIPs.value.includes(editingIPId.value)) {
           delete characterMap.value[editingIPId.value]
           await fetchIPCharacters(editingIPId.value)
@@ -1000,7 +1079,6 @@ const handleSubmitIP = async () => {
   })
 }
 
-// 角色相关操作
 const handleAddCharacter = () => {
   isEditCharacter.value = false
   editingCharacterId.value = null
@@ -1009,7 +1087,7 @@ const handleAddCharacter = () => {
   avatarPreview.value = ''
   avatarFile.value = null
   avatarUrlInput.value = ''
-  avatarInputMode.value = 'upload' // 默认使用上传模式
+  avatarInputMode.value = 'upload' 
   characterDialogVisible.value = true
 }
 
@@ -1021,7 +1099,7 @@ const handleAddCharacterForIP = (ip: IP) => {
   avatarPreview.value = ''
   avatarFile.value = null
   avatarUrlInput.value = ''
-  avatarInputMode.value = 'upload' // 默认使用上传模式
+  avatarInputMode.value = 'upload' 
   characterDialogVisible.value = true
 }
 
@@ -1034,16 +1112,12 @@ const handleEditCharacter = (row: Character) => {
     ip_id: row.ip.id,
     gender: row.gender,
   }
-  // 根据现有头像判断输入模式
   if (row.avatar) {
-    // 如果已有头像，判断是URL还是本地文件路径
-    // 如果是http/https开头，认为是URL，否则可能是本地路径（也按URL处理）
     if (row.avatar.startsWith('http://') || row.avatar.startsWith('https://')) {
       avatarInputMode.value = 'url'
       avatarUrlInput.value = row.avatar
       avatarPreview.value = row.avatar
     } else {
-      // 本地路径也按URL处理（后端会返回完整URL）
       avatarInputMode.value = 'url'
       avatarUrlInput.value = row.avatar
       avatarPreview.value = row.avatar
@@ -1070,11 +1144,9 @@ const handleDeleteCharacter = async (row: Character) => {
     )
     await deleteCharacter(row.id)
     ElMessage.success('已删除')
-    // 未展开情况下也能即时看到数量变化（最终会被 fetchIPCharacters 的 sync 覆盖为最准）
     if (ipList.value.find((x) => x.id === row.ip.id)?.character_count != null) {
       setIPCharacterCount(row.ip.id, Math.max(0, (ipList.value.find((x) => x.id === row.ip.id)?.character_count || 0) - 1))
     }
-    // 刷新该IP的角色列表
     if (characterMap.value[row.ip.id]) {
       delete characterMap.value[row.ip.id]
       await fetchIPCharacters(row.ip.id)
@@ -1085,24 +1157,21 @@ const handleDeleteCharacter = async (row: Character) => {
 const handleAvatarFileChange = (file: UploadFile) => {
   if (file.raw) {
     avatarFile.value = file.raw
-    avatarUrlInput.value = '' // 清空URL输入
+    avatarUrlInput.value = '' 
     const reader = new FileReader()
     reader.onload = (e) => (avatarPreview.value = e.target?.result as string)
     reader.readAsDataURL(file.raw)
   }
 }
 
-// 处理URL输入
 const handleAvatarUrlInput = (value: string) => {
   avatarUrlInput.value = value
   if (value.trim()) {
-    // 验证URL格式
     try {
       new URL(value.trim())
       avatarPreview.value = value.trim()
-      avatarFile.value = null // 清空文件
+      avatarFile.value = null 
     } catch {
-      // URL格式无效，不更新预览
       avatarPreview.value = ''
     }
   } else {
@@ -1116,11 +1185,9 @@ const handleSubmitCharacter = async () => {
     if (!valid) return
     submitting.value = true
     try {
-      // 根据输入模式选择发送FormData或JSON
       let data: FormData | { name: string; ip_id: number; gender: CharacterGender; avatar?: string | null }
       
       if (avatarInputMode.value === 'upload' && avatarFile.value) {
-        // 文件上传模式：使用FormData
         const formData = new FormData()
         formData.append('name', characterFormData.value.name)
         formData.append('ip_id', String(characterFormData.value.ip_id))
@@ -1128,7 +1195,6 @@ const handleSubmitCharacter = async () => {
         formData.append('avatar', avatarFile.value)
         data = formData
       } else {
-        // URL模式或没有头像：使用JSON
         data = {
           name: characterFormData.value.name,
           ip_id: characterFormData.value.ip_id!,
@@ -1143,9 +1209,7 @@ const handleSubmitCharacter = async () => {
       const oldIpId = editingCharacterOriginalIpId.value
       if (isEditCharacter.value && editingCharacterId.value) {
         await updateCharacter(editingCharacterId.value, data)
-        // 如果编辑时变更了所属IP，需要同步旧IP与新IP的角色列表/数量
         if (oldIpId && oldIpId !== newIpId) {
-          // 旧IP：若已加载过角色列表就重新拉取；否则至少先把计数 -1（避免一直显示旧值）
           if (characterMap.value[oldIpId]) {
             delete characterMap.value[oldIpId]
             await fetchIPCharacters(oldIpId)
@@ -1156,7 +1220,6 @@ const handleSubmitCharacter = async () => {
             )
           }
 
-          // 新IP：若已加载过角色列表就重新拉取；否则先把计数 +1
           if (characterMap.value[newIpId]) {
             delete characterMap.value[newIpId]
             await fetchIPCharacters(newIpId)
@@ -1164,7 +1227,6 @@ const handleSubmitCharacter = async () => {
             setIPCharacterCount(newIpId, (ipList.value.find((x) => x.id === newIpId)?.character_count || 0) + 1)
           }
         } else {
-          // 刷新该IP的角色列表（如果已展开/加载过）
           if (characterMap.value[newIpId]) {
             delete characterMap.value[newIpId]
             await fetchIPCharacters(newIpId)
@@ -1172,14 +1234,11 @@ const handleSubmitCharacter = async () => {
         }
       } else {
         await createCharacter(data)
-        // 如果是新增角色，刷新对应IP的角色列表
         delete characterMap.value[newIpId]
-        // 未展开情况下也能即时看到数量变化（最终会被 fetchIPCharacters 的 sync 覆盖为最准）
         if (ipList.value.find((x) => x.id === newIpId)?.character_count != null) {
           setIPCharacterCount(newIpId, (ipList.value.find((x) => x.id === newIpId)?.character_count || 0) + 1)
         }
         await fetchIPCharacters(newIpId)
-        // 如果是移动端，确保IP是展开状态
         if (!expandedIPs.value.includes(newIpId)) {
           expandedIPs.value.push(newIpId)
         }
@@ -1195,7 +1254,6 @@ const handleSubmitCharacter = async () => {
   })
 }
 
-// BGM导入相关操作
 const handleOpenBGMImport = () => {
   bgmDialogVisible.value = true
   handleBGMReset()
@@ -1225,10 +1283,9 @@ const handleBGMSearch = async () => {
     const result = await searchBGMCharacters(ipName, bgmSubjectType.value)
     bgmSearchResult.value = result
     bgmCharacterKeyword.value = ''
-    bgmSelectedCharacters.value = [] // 重置选择
+    bgmSelectedCharacters.value = [] 
     bgmStep.value = 'results'
   } catch (err: any) {
-    // 404错误特殊处理
     if (err.response?.status === 404) {
       ElMessage.error(err.response?.data?.detail || '未找到相关作品')
     } else {
@@ -1275,16 +1332,13 @@ const handleBGMConfirmImport = async () => {
       .map((char) => ({
         ip_name: result.ip_name,
         character_name: char.name,
-        // 传递头像URL（如果存在）
         avatar: char.avatar || null,
       }))
 
-    // 如果用户选择了作品类型，将其传递给创建接口
     const createResult = await createBGMCharacters(charactersToImport, bgmSubjectType.value)
     bgmImportResult.value = createResult
     bgmStep.value = 'imported'
 
-    // 刷新IP列表
     await fetchIPList()
 
     ElMessage.success(`成功导入 ${createResult.created} 个角色`)
@@ -1299,7 +1353,6 @@ const handleBGMConfirmImport = async () => {
 const handleBGMClose = () => {
   bgmDialogVisible.value = false
   handleBGMReset()
-  // 刷新IP列表以显示新导入的数据
   fetchIPList()
 }
 </script>
@@ -1619,14 +1672,63 @@ const handleBGMClose = () => {
 .mobile-view {
   display: none;
   flex-direction: column;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  max-height: calc(100vh - 200px);
+}
+
+.mobile-view-inner {
+  /* 修复：移除 transform，让 flex 自然排版 */
+  display: flex;
+  flex-direction: column;
   gap: 14px;
+}
+
+/* 下拉刷新相关样式 */
+.pull-indicator {
+  /* 修复：改为相对定位，不使用 absolute */
+  position: relative; 
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  /* 移除 top, left, z-index */
+}
+
+.indicator-content {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #909399;
+  padding-bottom: 10px;
+  width: 100%;
+}
+
+.indicator-content .el-icon {
+  font-size: 18px;
+  transition: transform 0.3s;
+}
+
+.indicator-text {
+  font-size: 14px;
+  color: #909399;
 }
 
 .ip-card-item {
   background: #fff;
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  /* 轻微渐隐阴影：用更大的模糊 + 负扩散，避免出现“直角阴影块” */
+  box-shadow:
+    0 10px 28px -18px rgba(17, 24, 39, 0.35),
+    0 3px 10px -8px rgba(17, 24, 39, 0.22);
+  border: 1px solid rgba(17, 24, 39, 0.04);
   transition: transform 0.2s;
 }
 
@@ -1796,6 +1898,9 @@ const handleBGMClose = () => {
   }
   .mobile-view {
     display: flex;
+  }
+  .hidden-xs-only {
+    display: none !important;
   }
   .header-section {
     flex-direction: column;

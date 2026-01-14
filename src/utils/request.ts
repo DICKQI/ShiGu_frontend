@@ -3,7 +3,21 @@ import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosReq
 import { ElMessage } from 'element-plus'
 
 // API基础URL存储键名
-const API_BASE_URL_KEY = 'shigu_api_base_url'
+const API_BASE_URL_KEY = 'pickgoods_api_base_url'
+const LEGACY_API_BASE_URL_KEY = 'shigu_api_base_url'
+
+const migrateLegacyBaseURLIfNeeded = (): void => {
+  if (typeof window === 'undefined') return
+  try {
+    const current = localStorage.getItem(API_BASE_URL_KEY)
+    if (current) return
+    const legacy = localStorage.getItem(LEGACY_API_BASE_URL_KEY)
+    if (!legacy) return
+    localStorage.setItem(API_BASE_URL_KEY, legacy)
+  } catch {
+    // ignore storage errors (e.g. privacy mode)
+  }
+}
 
 // 获取默认的API基础URL
 const getDefaultBaseURL = (): string => {
@@ -16,7 +30,8 @@ const getDefaultBaseURL = (): string => {
 // 获取API基础URL（优先从localStorage读取，其次从环境变量，最后使用默认值）
 const getBaseURL = (): string => {
   if (typeof window !== 'undefined') {
-    const savedURL = localStorage.getItem(API_BASE_URL_KEY)
+    migrateLegacyBaseURLIfNeeded()
+    const savedURL = localStorage.getItem(API_BASE_URL_KEY) || localStorage.getItem(LEGACY_API_BASE_URL_KEY)
     if (savedURL) {
       return savedURL
     }
@@ -38,7 +53,8 @@ axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // 每次请求时动态获取baseURL（支持运行时修改）
     if (typeof window !== 'undefined') {
-      const savedURL = localStorage.getItem(API_BASE_URL_KEY)
+      migrateLegacyBaseURLIfNeeded()
+      const savedURL = localStorage.getItem(API_BASE_URL_KEY) || localStorage.getItem(LEGACY_API_BASE_URL_KEY)
       if (savedURL) {
         config.baseURL = savedURL
       } else {
@@ -117,6 +133,7 @@ export const getCurrentBaseURL = (): string => {
 export const resetBaseURL = (): void => {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(API_BASE_URL_KEY)
+    localStorage.removeItem(LEGACY_API_BASE_URL_KEY)
     const defaultURL = import.meta.env.VITE_API_BASE_URL || getDefaultBaseURL()
     axiosInstance.defaults.baseURL = defaultURL
   }

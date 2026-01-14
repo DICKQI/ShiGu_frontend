@@ -4,7 +4,7 @@
     <nav ref="navbarRef" class="navbar" :class="{ 'navbar-native': isNativePlatform }">
       <div class="navbar-content">
         <div class="brand" @click="goHome">
-          <span class="brand-text">✦ 拾谷 ShiGu</span>
+          <span class="brand-text">✦ 拾谷 PickGoods</span>
         </div>
         <!-- 普通宽度下：直接展示完整菜单 -->
         <div class="nav-menu" v-if="!isMobile">

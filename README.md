@@ -1,4 +1,4 @@
-# 拾谷 ShiGu 前端
+# 拾谷 PickGoods 前端
 
 <div align="center">
 
@@ -18,7 +18,7 @@
 
 ## 📖 项目简介
 
-**拾谷 ShiGu** 是一个面向二次元收藏爱好者（谷子玩家）的专业数字化资产管理平台。系统致力于将物理收藏品转化为数字化资产，提供"云展柜式"的检索体验与高效的收纳管理能力。
+**拾谷 PickGoods** 是一个面向二次元收藏爱好者（谷子玩家）的专业数字化资产管理平台。系统致力于将物理收藏品转化为数字化资产，提供"云展柜式"的检索体验与高效的收纳管理能力。
 
 ### 核心定位
 
@@ -80,7 +80,7 @@
 ```bash
 # 1. 克隆项目
 git clone <repository-url>
-cd ShiGu_vue
+cd PickGoods_vue
 
 # 2. 安装依赖
 pnpm install
@@ -144,7 +144,7 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 ## 📁 项目结构
 
 ```
-ShiGu_vue/
+PickGoods_vue/
 ├── public/              # 静态资源目录
 │   └── favicon.ico     # 网站图标
 ├── src/
@@ -652,7 +652,7 @@ Capacitor 是由 Ionic 团队开发的跨平台应用运行时，允许您使用
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.shigu.app',        // 应用唯一标识符（反向域名）
+  appId: 'com.pickgoods.app',        // 应用唯一标识符（反向域名）
   appName: '拾谷',                 // 应用显示名称
   webDir: 'dist',                 // Web 构建输出目录
   server: {
@@ -795,7 +795,7 @@ cd android
 ```gradle
 android {
     defaultConfig {
-        applicationId "com.shigu.app"  // 应用包名
+        applicationId "com.pickgoods.app"  // 应用包名
         minSdkVersion 22                // 最低支持的 Android 版本
         targetSdkVersion 34             // 目标 Android 版本
         versionCode 1                   // 版本号（整数）
@@ -1378,9 +1378,9 @@ pnpm lint
 
 <div align="center">
 
-**拾谷 ShiGu** - 让收藏管理更简单、更高效 🎯
+**拾谷 PickGoods** - 让收藏管理更简单、更高效 🎯
 
-Made with ❤️ by ShiGu Team
+Made with ❤️ by PickGoods Team
 
 </div>
 

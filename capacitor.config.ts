@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.shigu.app',
+  appId: 'com.pickgoods.app',
   appName: '拾谷',
   webDir: 'dist',
   server: {
