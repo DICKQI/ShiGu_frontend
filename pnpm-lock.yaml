@@ -3050,15 +3050,11 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
 
-<<<<<<< HEAD
-  '@capacitor-community/http@1.4.1(patch_hash=l3dn6sg6myqui6aru7vcvxrcoa)':
-=======
   '@bassist/utils@0.4.0':
     dependencies:
       '@withtypes/mime': 0.1.2
 
-  '@capacitor-community/http@1.4.1':
->>>>>>> 2f7ee43247326d199fc07134df741f27318f1c5e
+  '@capacitor-community/http@1.4.1(patch_hash=l3dn6sg6myqui6aru7vcvxrcoa)':
     dependencies:
       '@capacitor/android': 3.9.0(@capacitor/core@3.9.0)
       '@capacitor/core': 3.9.0
