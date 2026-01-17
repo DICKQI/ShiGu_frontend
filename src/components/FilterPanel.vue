@@ -60,13 +60,14 @@
           </el-select>
         </div>
 
-            <!-- 角色筛选（联动） -->
+            <!-- 角色筛选（联动，支持文字搜索） -->
             <div class="filter-item">
           <label>角色</label>
           <el-select
             v-model="localFilters.character"
-            placeholder="选择角色"
+            placeholder="选择角色（支持搜索）"
             clearable
+            filterable
             :disabled="!localFilters.ip"
             @change="handleFilterChange"
             style="width: 100%"
@@ -176,6 +177,7 @@ const selectedStatuses = ref<GoodsStatus[]>([])
 const locationTreeData = computed(() => locationStore.treeData)
 
 const filteredCharacters = computed(() => {
+  // 如果选择了IP，只显示该IP下的角色；否则返回空数组（选择器会被禁用）
   if (!localFilters.value.ip) return []
   return characters.value.filter((char) => char.ip.id === localFilters.value.ip)
 })

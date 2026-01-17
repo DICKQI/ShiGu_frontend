@@ -12,21 +12,31 @@ export const useGuziStore = defineStore('guzi', () => {
   const filters = ref<GoodsSearchParams>({})
   const pagination = ref({
     count: 0,
-    next: null as string | null,
-    previous: null as string | null,
     page: 1,
+    page_size: 18, // 与后端 API 默认值保持一致
+    next: null as number | null,
+    previous: null as number | null,
   })
 
   // 内部搜索函数（不带防抖）
-  const _searchGuzi = async (params?: GoodsSearchParams) => {
+  const _searchGuzi = async (params?: GoodsSearchParams, keepPage?: boolean) => {
     if (loading.value) return
 
     loading.value = true
     error.value = null
 
-    // 更新筛选条件
+    // 检查是否有除 page 之外的筛选条件变化
+    const hasFilterChange = params && Object.keys(params).some(key => key !== 'page')
+    
+    // 如果筛选条件改变（非页码改变），重置到第一页
+    if (hasFilterChange && !keepPage) {
+      pagination.value.page = 1
+    }
+
+    // 更新筛选条件（排除 page，page 由分页逻辑单独处理）
     if (params) {
-      filters.value = { ...filters.value, ...params }
+      const { page, ...filterParams } = params
+      filters.value = { ...filters.value, ...filterParams }
     }
 
     try {
@@ -42,13 +52,15 @@ export const useGuziStore = defineStore('guzi', () => {
       console.log('results类型:', typeof response?.results)
       console.log('results是否为数组:', Array.isArray(response?.results))
       
-      // 处理不同的响应格式
-      let results: any[] = []
+      // 处理分页响应格式（根据新的 API 文档）
+      let results: GoodsListItem[] = []
       let count = 0
-      let next: string | null = null
-      let previous: string | null = null
+      let page = pagination.value.page
+      let page_size = pagination.value.page_size
+      let next: number | null = null
+      let previous: number | null = null
       
-      // 如果响应本身就是数组（某些情况下可能直接返回数组）
+      // 如果响应本身就是数组（某些情况下可能直接返回数组，向后兼容）
       if (Array.isArray(response)) {
         results = response
         count = response.length
@@ -56,12 +68,15 @@ export const useGuziStore = defineStore('guzi', () => {
       // 如果响应是分页对象
       else if (response && typeof response === 'object') {
         const responseObj = response as any
-        // 检查是否有 results 字段
+        // 检查是否有 results 字段（新格式）
         if ('results' in responseObj) {
           results = Array.isArray(responseObj.results) ? responseObj.results : []
           count = typeof responseObj.count === 'number' ? responseObj.count : results.length
-          next = responseObj.next || null
-          previous = responseObj.previous || null
+          // 新格式：page、page_size、next、previous 都是数字或 null
+          page = typeof responseObj.page === 'number' ? responseObj.page : pagination.value.page
+          page_size = typeof responseObj.page_size === 'number' ? responseObj.page_size : pagination.value.page_size
+          next = typeof responseObj.next === 'number' ? responseObj.next : (responseObj.next === null ? null : pagination.value.next)
+          previous = typeof responseObj.previous === 'number' ? responseObj.previous : (responseObj.previous === null ? null : pagination.value.previous)
         }
         // 如果没有 results 字段，但响应是对象，可能是直接返回的数据
         else {
@@ -86,10 +101,11 @@ export const useGuziStore = defineStore('guzi', () => {
       // 更新数据
       guziList.value = results
       pagination.value = {
-        count: count,
-        next: next,
-        previous: previous,
-        page: pagination.value.page,
+        count,
+        page,
+        page_size,
+        next,
+        previous,
       }
       
       console.log('数据已更新，列表长度:', guziList.value.length)
@@ -134,7 +150,7 @@ export const useGuziStore = defineStore('guzi', () => {
   // 设置页码
   function setPage(page: number) {
     pagination.value.page = page
-    _searchGuzi()
+    _searchGuzi(undefined, true) // keepPage = true，保持当前页码
   }
 
   // 立即搜索（用于首次加载）

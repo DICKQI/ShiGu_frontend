@@ -39,7 +39,7 @@
       <div class="pagination-wrapper">
         <el-pagination
           v-model:current-page="currentPage"
-          :page-size="20"
+          :page-size="guziStore.pagination.page_size"
           :total="guziStore.pagination.count"
           layout="prev, pager, next"
           @current-change="handlePageChange"

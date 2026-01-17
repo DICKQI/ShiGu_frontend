@@ -89,8 +89,10 @@ export interface GoodsDetail extends GoodsListItem {
 // 分页响应
 export interface PaginatedResponse<T> {
   count: number
-  next: string | null
-  previous: string | null
+  page: number
+  page_size: number
+  next: number | null
+  previous: number | null
   results: T[]
 }
 
