@@ -10,28 +10,35 @@
 
     <!-- 列表区域 -->
     <div class="list-section">
-      <div v-if="guziStore.loading" class="loading-container">
-        <el-skeleton :rows="5" animated />
-      </div>
+      <!-- 添加 Transition 组件包裹内容 -->
+      <Transition name="fade-slide" mode="out-in">
+        <!-- Loading 状态 -->
+        <div v-if="guziStore.loading" key="loading" class="loading-container">
+          <el-skeleton :rows="5" animated />
+        </div>
 
-      <div v-else-if="guziStore.error" class="error-container">
-        <el-alert :title="guziStore.error" type="error" :closable="false" />
-      </div>
+        <!-- 错误状态 -->
+        <div v-else-if="guziStore.error" key="error" class="error-container">
+          <el-alert :title="guziStore.error" type="error" :closable="false" />
+        </div>
 
-      <div v-else-if="guziStore.guziList.length === 0" class="empty-container">
-        <el-empty description="暂无谷子数据" />
-      </div>
+        <!-- 空数据状态 -->
+        <div v-else-if="guziStore.guziList.length === 0" key="empty" class="empty-container">
+          <el-empty description="暂无谷子数据" />
+        </div>
 
-      <div v-else class="goods-grid">
-        <GoodsCard
-          v-for="goods in guziStore.guziList"
-          :key="goods.id"
-          :goods="goods"
-          @click="handleCardClick"
-          @location-click="handleLocationClick"
-          @context-menu="handleCardContextMenu"
-        />
-      </div>
+        <!-- 商品列表状态 - 绑定 currentPage 作为 key，强制分页时触发动画 -->
+        <div v-else class="goods-grid" :key="currentPage">
+          <GoodsCard
+            v-for="goods in guziStore.guziList"
+            :key="goods.id"
+            :goods="goods"
+            @click="handleCardClick"
+            @location-click="handleLocationClick"
+            @context-menu="handleCardContextMenu"
+          />
+        </div>
+      </Transition>
     </div>
 
     <!-- 分页 - 悬浮固定在底部 -->
@@ -230,6 +237,23 @@ onUnmounted(() => {
 
 .list-section {
   margin-top: 24px;
+  min-height: 400px; /* 给列表区域一个最小高度，防止切换时的闪烁塌陷 */
+}
+
+/* 列表切换过渡动画 */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.3s cubic-bezier(0.55, 0, 0.1, 1);
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
 }
 
 .loading-container,
