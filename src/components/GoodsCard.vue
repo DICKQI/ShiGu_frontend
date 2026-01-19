@@ -56,12 +56,20 @@
         数量: {{ goods.quantity }}
       </div>
     </div>
+
+    <!-- 右下角菜单按钮 -->
+    <div 
+      class="menu-button" 
+      @click.stop="handleMenuButtonClick"
+    >
+      <el-icon><MoreFilled /></el-icon>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
-import { Picture, Location, Box, CircleCheck } from '@element-plus/icons-vue'
+import { Picture, Location, Box, CircleCheck, MoreFilled } from '@element-plus/icons-vue'
 import type { GoodsListItem } from '@/api/types'
 
 interface Props {
@@ -111,6 +119,15 @@ const handleLocationClick = () => {
 
 const handleContextMenu = (event: MouseEvent) => {
   event.preventDefault()
+  emit('contextMenu', {
+    goods: props.goods,
+    x: event.clientX,
+    y: event.clientY,
+  })
+}
+
+const handleMenuButtonClick = (event: MouseEvent) => {
+  event.stopPropagation()
   emit('contextMenu', {
     goods: props.goods,
     x: event.clientX,
@@ -387,6 +404,55 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
+/* 右下角菜单按钮 */
+.menu-button {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  z-index: 20;
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.goods-card:hover .menu-button {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.menu-button:hover {
+  background-color: var(--primary-gold-light);
+  color: var(--primary-gold);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: scale(1.1);
+}
+
+.menu-button:active {
+  transform: scale(0.95);
+}
+
+.menu-button .el-icon {
+  font-size: 18px;
+  color: var(--text-dark);
+  transition: color var(--transition-fast);
+}
+
+.menu-button:hover .el-icon {
+  color: var(--primary-gold);
+}
+
 /* 移动端优化 */
 @media (max-width: 768px) {
   .status-tag {
@@ -398,6 +464,20 @@ onBeforeUnmount(() => {
 
   .status-icon {
     font-size: 12px;
+  }
+
+  .menu-button {
+    bottom: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    /* 移动端默认显示，因为没有 hover 状态 */
+    opacity: 0.85;
+    transform: scale(1);
+  }
+
+  .menu-button .el-icon {
+    font-size: 16px;
   }
 }
 </style>
