@@ -12,3 +12,8 @@ declare module 'lodash-es' {
     options?: any
   ): T & { cancel: () => void; flush: () => void }
 }
+
+declare module 'sortablejs' {
+  const Sortable: any
+  export default Sortable
+}

@@ -117,6 +117,17 @@ export function deleteCategory(id: number) {
   return request.delete(`/api/categories/${id}/`)
 }
 
+// 批量更新品类排序
+export function batchUpdateCategoryOrder(items: { id: number; order: number }[]) {
+  return request.post<{
+    detail: string
+    updated_count: number
+    categories: Category[]
+  }>('/api/categories/batch-update-order/', {
+    items,
+  })
+}
+
 // ==================== BGM角色导入 ====================
 
 import type { BGMSearchResponse, BGMCreateCharactersResponse, BGMCreateCharacterItem } from './types'

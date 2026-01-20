@@ -58,6 +58,7 @@
           <div class="hidden-xs-only">
             <el-table
               ref="tableRef"
+              :key="componentKey"
               :data="displayedTree"
               style="width: 100%"
               class="pc-table"
@@ -68,6 +69,17 @@
               :row-class-name="rowClassName"
               @expand-change="handleExpandChange"
             >
+              <el-table-column label="排序" width="80" align="center">
+                <template #default>
+                  <div class="drag-handle">
+                    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <line x1="2" y1="4" x2="14" y2="4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                      <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                      <line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                  </div>
+                </template>
+              </el-table-column>
               <el-table-column prop="name" label="品类">
                 <template #default="{ row }">
                   <div
@@ -95,11 +107,6 @@
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="order" label="排序" width="100" align="center">
-                <template #default="{ row }">
-                  <span class="order-text">{{ row.order ?? 0 }}</span>
-                </template>
-              </el-table-column>
               <el-table-column label="操作" width="220" align="right">
                 <template #default="{ row }">
                   <div class="action-inline">
@@ -122,15 +129,14 @@
           </div>
 
           <!-- 【移动端视图】 -->
-          <div class="visible-xs-only mobile-list-container">
+          <div class="visible-xs-only mobile-list-container" :key="componentKey">
             <div
               v-for="item in flatDisplayedList"
               :key="item.id"
               class="mobile-card"
               :style="{ paddingLeft: `${16 + (item.depth || 1) * 12}px`, borderLeftColor: depthColor(item.depth) }"
-              @click="handleMobileCardClick(item)"
             >
-              <div class="mobile-card-left">
+              <div class="mobile-card-left" @click="handleMobileCardClick(item)">
                 <div class="icon-placeholder">
                   <el-icon><CollectionTag /></el-icon>
                 </div>
@@ -146,8 +152,17 @@
                   <div class="card-path">{{ item.path_name }}</div>
                 </div>
               </div>
-              <div class="mobile-card-right" @click.stop="openMobileActions(item)">
-                <el-icon><MoreFilled /></el-icon>
+              <div class="mobile-card-right">
+                <div class="mobile-drag-handle">
+                  <svg viewBox="0 0 16 16" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <line x1="2" y1="4" x2="14" y2="4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <line x1="2" y1="8" x2="14" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <line x1="2" y1="12" x2="14" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <div class="mobile-more" @click.stop="openMobileActions(item)">
+                  <el-icon><MoreFilled /></el-icon>
+                </div>
               </div>
             </div>
           </div>
@@ -244,12 +259,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { Plus, Search, CollectionTag, Refresh, Loading, Top, MoreFilled, Edit, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { getCategoryList, getCategoryTree, createCategory, updateCategory, deleteCategory } from '@/api/metadata'
+import { getCategoryList, getCategoryTree, createCategory, updateCategory, deleteCategory, batchUpdateCategoryOrder } from '@/api/metadata'
 import type { Category } from '@/api/types'
+import Sortable from 'sortablejs'
 
 type CategoryNode = Category & { children?: CategoryNode[]; depth?: number }
 
@@ -265,6 +281,9 @@ const colorPresets = ['#8e7dff', '#FF5733', '#33C3F0', '#FFC300', '#67C23A', '#E
 const tableRef = ref()
 const expandedIds = ref<Set<number>>(new Set())
 const expandedMobileIds = ref<Set<number>>(new Set())
+let sortableInstance: any | null = null
+const isSorting = ref(false)
+const componentKey = ref(0)
 
 // 窗口宽度响应式
 const windowWidth = ref(window.innerWidth)
@@ -293,7 +312,7 @@ const getScrollTop = () => {
 }
 
 const handleTouchStart = (e: TouchEvent) => {
-  if (!isMobile.value || isRefreshing.value) return
+  if (!isMobile.value || isRefreshing.value || isSorting.value) return
   
   // 核心修改：检测 window 的滚动高度，只有在页面最顶端时才记录触摸点
   if (getScrollTop() > 0) {
@@ -308,7 +327,7 @@ const handleTouchStart = (e: TouchEvent) => {
 
 const handleTouchMove = (e: TouchEvent) => {
   // 如果起始点无效（说明开始触摸时不在顶部），直接忽略
-  if (!isMobile.value || isRefreshing.value || startY.value === 0) return
+  if (!isMobile.value || isRefreshing.value || isSorting.value || startY.value === 0) return
   
   // 双重保险：移动过程中如果页面被卷下去了，也不处理
   if (getScrollTop() > 0) return
@@ -330,7 +349,7 @@ const handleTouchMove = (e: TouchEvent) => {
 // ================== 核心修复逻辑结束 ==================
 
 const handleTouchEnd = async () => {
-  if (!isMobile.value || isRefreshing.value) return
+  if (!isMobile.value || isRefreshing.value || isSorting.value) return
   if (pullDistance.value >= TRIGGER_DIST) {
     isRefreshing.value = true
     pullDistance.value = TRIGGER_DIST 
@@ -416,6 +435,115 @@ const flattenTree = (nodes: CategoryNode[]) => {
   return arr
 }
 
+// 将拖拽初始化逻辑提取为独立函数
+const initDragSort = () => {
+  // 先销毁旧实例
+  if (sortableInstance) {
+    sortableInstance.destroy()
+    sortableInstance = null
+  }
+
+  // 仅在浏览器环境下初始化
+  if (typeof window === 'undefined') return
+
+  if (!isMobile.value) {
+    // PC 端：对表格行启用拖拽
+    const tableEl = tableRef.value?.$el as HTMLElement | undefined
+    const tbody = tableEl?.querySelector('.el-table__body-wrapper tbody') as HTMLElement | null
+    if (tbody) {
+      sortableInstance = Sortable.create(tbody, {
+        handle: '.drag-handle',
+        animation: 150,
+        onStart: () => {
+          isSorting.value = true
+        },
+        onEnd: (evt: any) => {
+          isSorting.value = false
+          handleRowReorder(flattenTree(displayedTree.value), evt.oldIndex ?? 0, evt.newIndex ?? 0)
+        },
+      })
+    }
+  } else {
+    // 移动端：对卡片列表启用拖拽
+    const mobileList = document.querySelector('.mobile-list-container') as HTMLElement | null
+    if (mobileList) {
+      sortableInstance = Sortable.create(mobileList, {
+        handle: '.mobile-drag-handle',
+        animation: 150,
+        onStart: () => {
+          isSorting.value = true
+        },
+        onEnd: (evt: any) => {
+          isSorting.value = false
+          handleRowReorder(flatDisplayedList.value, evt.oldIndex ?? 0, evt.newIndex ?? 0)
+        },
+      })
+    }
+  }
+}
+
+const handleRowReorder = async (source: CategoryNode[], oldIndex: number, newIndex: number) => {
+  if (oldIndex === newIndex) return
+  const moved = source[oldIndex]
+  const target = source[newIndex]
+  if (!moved || !target) return
+
+  // 仅允许同一父级内部排序
+  if (moved.parent !== target.parent) {
+    ElMessage.warning('当前仅支持同一父级内部拖拽排序')
+    await fetchCategoryList()
+    return
+  }
+
+  const parentId = moved.parent
+  const siblings = allCategories.value
+    .filter((c) => c.parent === parentId)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name))
+
+  const from = siblings.findIndex((s) => s.id === moved.id)
+  const to = siblings.findIndex((s) => s.id === target.id)
+  if (from === -1 || to === -1) return
+
+  const [removed] = siblings.splice(from, 1)
+  if (!removed) return
+  siblings.splice(to, 0, removed)
+
+  // 重新生成顺序值，使用步长10，避免未来插入冲突
+  const items = siblings.map((c, index) => ({
+    id: c.id,
+    order: index * 10,
+  }))
+
+  // 本地同步更新 allCategories 的 order
+  items.forEach((item) => {
+    const cat = allCategories.value.find((c) => c.id === item.id)
+    if (cat) {
+      cat.order = item.order
+    }
+  })
+
+  // ========== 关键修复代码开始 ==========
+  // 1. 强制刷新 Key，触发 Vue 销毁并重建 Table 组件
+  // 这样所有的子节点会依据新的数据结构重新渲染到正确的位置
+  componentKey.value++
+
+  // 2. 等待 DOM 重建完毕
+  await nextTick()
+
+  // 3. DOM 变了，必须重新绑定 Sortable
+  initDragSort()
+  // ========== 关键修复代码结束 ==========
+
+  try {
+    // 异步发送请求，不阻塞界面更新
+    await batchUpdateCategoryOrder(items)
+    ElMessage.success('排序已更新')
+  } catch (error) {
+    ElMessage.error('排序更新失败，请重试')
+    await fetchCategoryList() // 失败时回滚
+  }
+}
+
 const displayedTree = computed<CategoryNode[]>(() => {
   const tree = buildCategoryTree(allCategories.value)
   return filterTreeByKeyword(tree, searchText.value.trim())
@@ -498,6 +626,10 @@ const fetchCategoryList = async () => {
     // 优先拉取树接口，支持多层结构与颜色标签
     const data = keyword ? await getCategoryList({ search: keyword }) : await getCategoryTree()
     allCategories.value = data
+
+    // 数据更新后，初始化/更新拖拽
+    await nextTick()
+    initDragSort() // 使用封装的函数
   } finally {
     loading.value = false
   }
@@ -594,6 +726,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateWindowWidth)
+  if (sortableInstance) {
+    sortableInstance.destroy()
+    sortableInstance = null
+  }
 })
 </script>
 
@@ -672,6 +808,21 @@ onUnmounted(() => {
 .color-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-left: 6px; box-shadow: 0 0 0 1px #ececec; }
 .path-tag { border-radius: 8px; }
 .order-text { color: #606266; font-variant-numeric: tabular-nums; }
+.drag-handle {
+  cursor: grab;
+  color: #c0c4cc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  transition: color 0.2s;
+}
+.drag-handle:hover {
+  color: #8e7dff;
+}
+.drag-handle svg {
+  display: block;
+}
 .action-inline { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .action-divider { display: inline-block; width: 1px; height: 16px; background: #e4e7ed; }
 .pc-table :deep(.el-table__expand-icon),
@@ -776,8 +927,48 @@ onUnmounted(() => {
 }
 
 .mobile-card-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: #ccc;
-  font-size: 20px;
+  font-size: 18px;
+}
+
+.mobile-drag-handle {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px dashed #e4e7ed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c0c4cc;
+  transition: color 0.2s;
+}
+.mobile-drag-handle svg {
+  display: block;
+}
+
+.mobile-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 移动端拖拽动画效果 */
+@media (max-width: 768px) {
+  .mobile-list-container .mobile-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .mobile-list-container .mobile-card.sortable-chosen {
+    transform: scale(0.98);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  .mobile-list-container .mobile-card.sortable-ghost {
+    opacity: 0.6;
+  }
 }
 
 /* 底部动作面板样式 */
