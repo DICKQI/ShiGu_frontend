@@ -189,7 +189,6 @@ onBeforeUnmount(() => {
   border-color: var(--primary-gold);
 }
 
-/* 标签通用样式 */
 .attr-tag {
   position: absolute;
   top: 10px;
@@ -197,49 +196,46 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #fff;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: bold; /* 加粗文字提高识别率 */
   z-index: 10;
   
-  /* 磨砂玻璃效果核心 */
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  /* 增加 brightness(0.85) 让标签覆盖区域稍微变暗，确保浅色图不吃字 */
+  backdrop-filter: blur(12px) saturate(180%) brightness(0.85);
+  -webkit-backdrop-filter: blur(12px) saturate(180%) brightness(0.85);
   
-  /* 阴影与文字阴影 */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  /* 核心：增加文字阴影，这是解决浅色背景最有效的方法 */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   
   transition: all 0.3s ease;
-  letter-spacing: 0.5px;
 }
 
-.attr-tag:hover {
+.tag-official {
+  background: rgba(212, 175, 55, 0.2); 
+  color: #FFD700; /* 使用高亮金 */
+  border-color: rgba(212, 175, 55, 0.6);
+}
+
+.tag-unofficial {
+  background: rgba(162, 155, 254, 0.2);
+  color: #D6D2FF; /* 使用浅亮紫 */
+  border-color: rgba(162, 155, 254, 0.6);
+}
+
+/* 鼠标悬停时，加深背景，进一步强化对比 */
+.goods-card:hover .attr-tag {
+  backdrop-filter: blur(12px) saturate(200%) brightness(0.7);
+  -webkit-backdrop-filter: blur(12px) saturate(200%) brightness(0.7);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .tag-icon {
-  font-size: 13px;
-  display: inline-flex;
-  align-items: center;
-  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.1)); 
-}
-
-/* 官谷样式 - 香槟金半透明 */
-.tag-official {
-  /* 使用 rgba 确保半透明：透明度约 0.8 */
-  background: linear-gradient(135deg, rgba(212, 175, 55, 0.85) 0%, rgba(184, 149, 31, 0.75) 100%);
-}
-
-/* 同人样式 - 镭射紫半透明 */
-.tag-unofficial {
-  /* 使用 rgba 确保半透明：透明度约 0.8 */
-  background: linear-gradient(135deg, rgba(162, 155, 254, 0.85) 0%, rgba(108, 92, 231, 0.75) 100%);
+  font-size: 12px;
+  filter: none; /* 去掉阴影，保持干净 */
 }
 
 .card-image {
@@ -373,16 +369,14 @@ onBeforeUnmount(() => {
   color: var(--primary-gold);
 }
 
+/* 移动端进一步精简 */
 @media (max-width: 768px) {
   .attr-tag {
     top: 8px;
     right: 8px;
-    padding: 3px 8px;
-    font-size: 11px;
-  }
-
-  .tag-icon {
-    font-size: 12px;
+    padding: 2px 6px;
+    font-size: 10px;
+    border-radius: 4px;
   }
 
   .menu-button {
