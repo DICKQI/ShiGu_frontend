@@ -73,6 +73,20 @@
         :style="{ top: contextMenuY + 'px', left: contextMenuX + 'px' }"
         @click.stop
       >
+        <div
+          class="context-menu-item"
+          :class="{ 'is-disabled': moveDisabledForward }"
+          @click="handleMoveForward"
+        >
+          前移
+        </div>
+        <div
+          class="context-menu-item"
+          :class="{ 'is-disabled': moveDisabledBackward }"
+          @click="handleMoveBackward"
+        >
+          后移
+        </div>
         <div class="context-menu-item" @click="handleEditGoods">
           编辑
         </div>
@@ -94,7 +108,7 @@ import FilterPanel from '@/components/FilterPanel.vue'
 import GoodsCard from '@/components/GoodsCard.vue'
 import GoodsDrawer from '@/components/GoodsDrawer.vue'
 import type { GoodsListItem } from '@/api/types'
-import { deleteGoods } from '@/api/goods'
+import { deleteGoods, getGoodsList, moveGoods } from '@/api/goods'
 
 const router = useRouter()
 const guziStore = useGuziStore()
@@ -106,6 +120,7 @@ const contextMenuVisible = ref(false)
 const contextMenuX = ref(0)
 const contextMenuY = ref(0)
 const contextMenuGoods = ref<GoodsListItem | null>(null)
+const moveLoading = ref(false)
 
 // 移动端分页器显示控制
 const isMobile = ref(window.innerWidth < 768)
@@ -115,6 +130,33 @@ const currentPage = computed({
   get: () => guziStore.pagination.page,
   set: (val) => guziStore.setPage(val),
 })
+
+const totalPages = computed(() => {
+  const size = guziStore.pagination.page_size || 1
+  const total = guziStore.pagination.count || 0
+  return size > 0 ? Math.ceil(total / size) || 1 : 1
+})
+
+const contextMenuIndex = computed(() => {
+  if (!contextMenuGoods.value) return -1
+  return guziStore.guziList.findIndex(item => item.id === contextMenuGoods.value?.id)
+})
+
+const isFirstItemFirstPage = computed(() => {
+  return contextMenuGoods.value && guziStore.pagination.page === 1 && contextMenuIndex.value === 0
+})
+
+const isLastItemLastPage = computed(() => {
+  if (!contextMenuGoods.value) return false
+  const idx = contextMenuIndex.value
+  return (
+    idx === guziStore.guziList.length - 1 &&
+    guziStore.pagination.page >= totalPages.value
+  )
+})
+
+const moveDisabledForward = computed(() => moveLoading.value || isFirstItemFirstPage.value)
+const moveDisabledBackward = computed(() => moveLoading.value || isLastItemLastPage.value)
 
 const handleCardClick = (goods: GoodsListItem) => {
   selectedGoodsId.value = goods.id
@@ -171,6 +213,126 @@ const handleDeleteGoods = async () => {
     if (error === 'cancel' || error === 'close') return
     ElMessage.error('删除失败')
   }
+}
+
+const extractResults = (response: any): GoodsListItem[] => {
+  if (Array.isArray(response)) return response
+  if (response && Array.isArray(response.results)) return response.results
+  return []
+}
+
+const fetchAnchorItem = async (page: number, take: 'first' | 'last') => {
+  const response = await getGoodsList({
+    ...guziStore.filters,
+    page,
+    page_size: guziStore.pagination.page_size,
+  })
+  const list = extractResults(response)
+  if (!list.length) return null
+  return take === 'first' ? list[0] : list[list.length - 1]
+}
+
+const handleMove = async (direction: 'forward' | 'backward') => {
+  if (!contextMenuGoods.value) return
+  if (moveLoading.value) return
+
+  const goods = contextMenuGoods.value
+  const idx = contextMenuIndex.value
+
+  if (idx === -1) {
+    ElMessage.warning('未找到当前卡片，无法排序')
+    return
+  }
+
+  // 前移：保护第一页第一个
+  if (direction === 'forward' && isFirstItemFirstPage.value) {
+    ElMessage.info('第一页最前面的卡片无法再前移')
+    return
+  }
+
+  // 后移：最后一页最后一项无法后移
+  if (direction === 'backward' && isLastItemLastPage.value) {
+    ElMessage.info('已经是最后一个位置，无法后移')
+    return
+  }
+
+  moveLoading.value = true
+
+  try {
+    let anchorId = ''
+    let position: 'before' | 'after' = direction === 'forward' ? 'before' : 'after'
+
+    if (direction === 'forward') {
+      if (idx > 0) {
+        const anchor = guziStore.guziList[idx - 1]
+        if (!anchor) {
+          ElMessage.error('未找到前一项，无法前移')
+          return
+        }
+        anchorId = anchor.id
+      } else {
+        const prevPage = guziStore.pagination.page - 1
+        const anchorItem = await fetchAnchorItem(prevPage, 'last')
+        if (!anchorItem) {
+          ElMessage.error('未找到前一页的锚点，无法前移')
+          return
+        }
+        anchorId = anchorItem.id
+      }
+    } else {
+      if (idx < guziStore.guziList.length - 1) {
+        const anchor = guziStore.guziList[idx + 1]
+        if (!anchor) {
+          ElMessage.error('未找到后一项，无法后移')
+          return
+        }
+        anchorId = anchor.id
+      } else {
+        const nextPage = guziStore.pagination.page + 1
+        const anchorItem = await fetchAnchorItem(nextPage, 'first')
+        if (!anchorItem) {
+          ElMessage.error('未找到后一页的锚点，无法后移')
+          return
+        }
+        anchorId = anchorItem.id
+      }
+    }
+
+    await moveGoods(goods.id, {
+      anchor_id: anchorId,
+      position,
+    })
+
+    closeContextMenu()
+    ElMessage.success('排序已更新')
+    await guziStore.searchGuziImmediate()
+  } catch (error: any) {
+    console.error('排序移动失败:', error)
+    const detail = error?.response?.data?.detail || error?.message || '排序失败'
+    ElMessage.error(detail)
+  } finally {
+    moveLoading.value = false
+  }
+}
+
+const handleMoveForward = () => {
+  if (moveDisabledForward.value) {
+    if (isFirstItemFirstPage.value) {
+      ElMessage.info('第一页最前面的卡片无法再前移')
+    }
+    return
+  }
+  handleMove('forward')
+}
+
+const handleMoveBackward = () => {
+  if (moveDisabledBackward.value) {
+    if (isLastItemLastPage.value) {
+      ElMessage.info('已经是最后一个位置，无法后移')
+    }
+    return
+  }
+  handleMove('backward')
 }
 
 // 检测是否滚动到底部
@@ -379,6 +541,12 @@ onUnmounted(() => {
 .context-menu-item:hover {
   background-color: var(--primary-gold-light);
   color: var(--primary-gold-dark);
+}
+
+.context-menu-item.is-disabled {
+  color: var(--text-lighter);
+  cursor: not-allowed;
+  background-color: transparent !important;
 }
 
 .context-menu-item-danger {

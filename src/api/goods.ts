@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-import type { GoodsListItem, GoodsDetail, PaginatedResponse, GoodsSearchParams, GoodsInput } from './types'
+import type { GoodsListItem, GoodsDetail, PaginatedResponse, GoodsSearchParams, GoodsInput, MoveGoodsResponse } from './types'
 
 // 获取谷子列表
 export function getGoodsList(params?: GoodsSearchParams) {
@@ -85,4 +85,15 @@ export function deleteAdditionalPhotos(goodsId: string, photoIds: number[]) {
 // 删除谷子
 export function deleteGoods(id: string) {
   return request.delete(`/api/goods/${id}/`)
+}
+
+// 移动谷子排序（支持跨页锚点）
+export function moveGoods(
+  id: string,
+  data: {
+    anchor_id: string
+    position: 'before' | 'after'
+  },
+) {
+  return request.post<MoveGoodsResponse>(`/api/goods/${id}/move/`, data)
 }

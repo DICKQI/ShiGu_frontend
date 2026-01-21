@@ -122,6 +122,7 @@ export interface GoodsSearchParams {
   location?: number
   search?: string
   page?: number
+  page_size?: number
 }
 
 // 创建/更新谷子的输入类型（字段可以是 ID 或对象）
@@ -143,6 +144,13 @@ export interface GoodsInput {
   is_official?: boolean
   notes?: string | null
   main_photo?: string | null
+}
+
+// 谷子排序移动响应
+export interface MoveGoodsResponse {
+  detail?: string
+  id: string
+  new_order?: number
 }
 
 // BGM角色搜索结果
