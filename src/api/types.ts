@@ -112,6 +112,13 @@ export interface GoodsSearchParams {
   status?: GoodsStatus
   // 支持后端的多状态过滤：status__in=in_cabinet,sold
   status__in?: string
+  /**
+   * 是否官谷筛选：
+   * - true：只看官谷
+   * - false：只看非官谷
+   * - undefined：不过滤
+   */
+  is_official?: boolean
   location?: number
   search?: string
   page?: number

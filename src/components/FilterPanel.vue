@@ -110,6 +110,21 @@
           </el-checkbox-group>
         </div>
 
+            <!-- 是否官谷筛选（三态：全部/官谷/同人） -->
+            <div class="filter-item">
+              <label>是否官谷</label>
+              <el-select
+                v-model="localFilters.is_official"
+                placeholder="全部"
+                clearable
+                @change="handleFilterChange"
+                style="width: 100%"
+              >
+                <el-option label="官谷" :value="true" />
+                <el-option label="同人" :value="false" />
+              </el-select>
+            </div>
+
             <!-- 位置筛选 -->
             <div class="filter-item">
               <label>位置</label>
@@ -171,6 +186,7 @@ const localFilters = ref<GoodsSearchParams>({
   category: undefined,
   status: undefined,
   status__in: undefined,
+  is_official: undefined,
   location: undefined,
 })
 
@@ -263,6 +279,7 @@ const handleFilterChange = () => {
     ip: localFilters.value.ip || undefined,
     character: localFilters.value.character || undefined,
     category: localFilters.value.category || undefined,
+    is_official: localFilters.value.is_official,
     location: localFilters.value.location || undefined,
   }
 
@@ -283,6 +300,7 @@ const handleReset = () => {
     category: undefined,
     status: undefined,
     status__in: undefined,
+    is_official: undefined,
     location: undefined,
   }
   selectedStatuses.value = []
@@ -299,6 +317,7 @@ watch(
       category: newFilters.category,
       status: newFilters.status,
       status__in: newFilters.status__in,
+      is_official: newFilters.is_official,
       location: newFilters.location,
     }
 
