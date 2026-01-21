@@ -86,4 +86,3 @@ export function deleteAdditionalPhotos(goodsId: string, photoIds: number[]) {
 export function deleteGoods(id: string) {
   return request.delete(`/api/goods/${id}/`)
 }
-

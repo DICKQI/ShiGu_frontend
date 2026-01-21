@@ -8,14 +8,13 @@
     @touchcancel="handleTouchEnd"
     @touchmove="handleTouchMove"
   >
-    <!-- 状态标签 -->
-    <div class="status-tag" :class="statusClass">
-      <el-icon class="status-icon">
-        <Box v-if="goods.status === 'in_cabinet'" />
-        <Location v-else-if="goods.status === 'outdoor'" />
-        <CircleCheck v-else-if="goods.status === 'sold'" />
+    <!-- 状态标签：官谷/同人 -->
+    <div class="attr-tag" :class="tagClass">
+      <el-icon class="tag-icon">
+        <CircleCheck v-if="goods.is_official" />
+        <Brush v-else />
       </el-icon>
-      <span class="status-text">{{ statusText }}</span>
+      <span class="tag-text">{{ tagText }}</span>
     </div>
 
     <!-- 主图 -->
@@ -69,7 +68,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
-import { Picture, Location, Box, CircleCheck, MoreFilled } from '@element-plus/icons-vue'
+import { Picture, Location, CircleCheck, MoreFilled, Brush } from '@element-plus/icons-vue'
 import type { GoodsListItem } from '@/api/types'
 
 interface Props {
@@ -87,25 +86,20 @@ const emit = defineEmits<{
 const isLongPress = ref(false)
 let longPressTimer: number | null = null
 
-const statusText = computed(() => {
-  const map: Record<string, string> = {
-    in_cabinet: '在馆',
-    outdoor: '出街中',
-    sold: '已售出',
-  }
-  return map[props.goods.status] || props.goods.status
+// 标签文本
+const tagText = computed(() => {
+  return props.goods.is_official ? '官谷' : '同人'
 })
 
-const statusClass = computed(() => {
+// 标签样式类
+const tagClass = computed(() => {
   return {
-    'status-in-cabinet': props.goods.status === 'in_cabinet',
-    'status-outdoor': props.goods.status === 'outdoor',
-    'status-sold': props.goods.status === 'sold',
+    'tag-official': props.goods.is_official,
+    'tag-unofficial': !props.goods.is_official
   }
 })
 
 const handleClick = () => {
-  // 长按已经触发菜单时，不再触发点击打开详情
   if (isLongPress.value) {
     isLongPress.value = false
     return
@@ -148,7 +142,6 @@ const handleTouchStart = (event: TouchEvent) => {
   if (!touch) return
   longPressTimer = window.setTimeout(() => {
     isLongPress.value = true
-    // 再次安全获取最新的触点坐标
     const currentTouch = event.touches[0] || touch
     emit('contextMenu', {
       goods: props.goods,
@@ -163,7 +156,6 @@ const handleTouchEnd = () => {
 }
 
 const handleTouchMove = () => {
-  // 手指移动则认为取消长按
   clearLongPressTimer()
 }
 
@@ -197,128 +189,57 @@ onBeforeUnmount(() => {
   border-color: var(--primary-gold);
 }
 
-.status-tag {
+/* 标签通用样式 */
+.attr-tag {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 10px;
+  right: 10px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 12px;
-  border-radius: 16px;
+  padding: 4px 10px;
+  border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
-  color: white;
+  color: #fff;
   z-index: 10;
+  
+  /* 磨砂玻璃效果核心 */
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  
+  /* 阴影与文字阴影 */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(4px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  letter-spacing: 0.3px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  
+  transition: all 0.3s ease;
+  letter-spacing: 0.5px;
 }
 
-.status-tag:hover {
-  transform: translateY(-2px);
+.attr-tag:hover {
+  transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
-.status-icon {
-  font-size: 14px;
+.tag-icon {
+  font-size: 13px;
   display: inline-flex;
   align-items: center;
-  opacity: 0.95;
-  transition: transform 0.3s ease;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.1)); 
 }
 
-.status-tag:hover .status-icon {
-  transform: scale(1.1);
+/* 官谷样式 - 香槟金半透明 */
+.tag-official {
+  /* 使用 rgba 确保半透明：透明度约 0.8 */
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.85) 0%, rgba(184, 149, 31, 0.75) 100%);
 }
 
-.status-text {
-  line-height: 1;
-}
-
-/* 在馆 - 绿色渐变，表示可用 */
-.status-in-cabinet {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
-}
-
-.status-in-cabinet:hover {
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-}
-
-.status-in-cabinet::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  bottom: -2px;
-  left: -2px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border-radius: 18px;
-  z-index: -1;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.status-in-cabinet:hover::before {
-  opacity: 0.2;
-}
-
-/* 出街中 - 橙色渐变，表示临时外出 */
-.status-outdoor {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
-}
-
-.status-outdoor:hover {
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
-}
-
-.status-outdoor::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  bottom: -2px;
-  left: -2px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  border-radius: 18px;
-  z-index: -1;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.status-outdoor:hover::before {
-  opacity: 0.2;
-}
-
-/* 已售出 - 灰色渐变，表示已售出 */
-.status-sold {
-  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
-  box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3);
-}
-
-.status-sold:hover {
-  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
-}
-
-.status-sold::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  bottom: -2px;
-  left: -2px;
-  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
-  border-radius: 18px;
-  z-index: -1;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.status-sold:hover::before {
-  opacity: 0.2;
+/* 同人样式 - 镭射紫半透明 */
+.tag-unofficial {
+  /* 使用 rgba 确保半透明：透明度约 0.8 */
+  background: linear-gradient(135deg, rgba(162, 155, 254, 0.85) 0%, rgba(108, 92, 231, 0.75) 100%);
 }
 
 .card-image {
@@ -404,7 +325,6 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
-/* 右下角菜单按钮 */
 .menu-button {
   position: absolute;
   bottom: 12px;
@@ -453,16 +373,15 @@ onBeforeUnmount(() => {
   color: var(--primary-gold);
 }
 
-/* 移动端优化 */
 @media (max-width: 768px) {
-  .status-tag {
+  .attr-tag {
     top: 8px;
     right: 8px;
-    padding: 5px 10px;
+    padding: 3px 8px;
     font-size: 11px;
   }
 
-  .status-icon {
+  .tag-icon {
     font-size: 12px;
   }
 
@@ -471,7 +390,6 @@ onBeforeUnmount(() => {
     right: 8px;
     width: 28px;
     height: 28px;
-    /* 移动端默认显示，因为没有 hover 状态 */
     opacity: 0.85;
     transform: scale(1);
   }

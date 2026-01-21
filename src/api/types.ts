@@ -77,6 +77,7 @@ export interface GoodsListItem {
   main_photo?: string | null
   status: GoodsStatus
   quantity: number
+  is_official?: boolean
 }
 
 // 谷子详情（完整版）
