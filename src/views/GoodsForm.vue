@@ -101,7 +101,8 @@
                 placeholder="选择位置"
                 clearable
                 style="width: 100%"
-                :props="{ label: 'label', value: 'id' }"
+                :props="{ label: 'label', value: 'id', children: 'children' }"
+                check-strictly
               />
             </el-form-item>
           </el-col>
