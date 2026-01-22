@@ -65,7 +65,7 @@
           <label>角色</label>
           <el-select
             v-model="localFilters.character"
-            placeholder="选择角色（支持搜索）"
+            placeholder="选择角色"
             clearable
             filterable
             :disabled="!localFilters.ip"
@@ -87,7 +87,7 @@
               <el-tree-select
                 v-model="localFilters.category"
                 :data="categoryTreeData"
-                placeholder="选择品类（支持任意层级）"
+                placeholder="选择品类"
                 clearable
                 @change="handleFilterChange"
                 style="width: 100%"
@@ -97,7 +97,7 @@
             </div>
 
             <!-- 状态筛选（支持多选） -->
-            <div class="filter-item">
+            <div class="filter-item filter-item--status">
           <label>状态</label>
           <el-checkbox-group
             v-model="selectedStatuses"
@@ -111,7 +111,7 @@
         </div>
 
             <!-- 是否官谷筛选（三态：全部/官谷/同人） -->
-            <div class="filter-item">
+            <div class="filter-item filter-item--official">
               <label>是否官谷</label>
               <el-select
                 v-model="localFilters.is_official"
@@ -135,7 +135,8 @@
                 clearable
                 @change="handleFilterChange"
                 style="width: 100%"
-                :props="{ label: 'label', value: 'id' }"
+                :props="{ label: 'label', value: 'id', children: 'children' }"
+                check-strictly
               />
             </div>
           </div>
@@ -172,9 +173,8 @@ const locationStore = useLocationStore()
 // 设备类型 & 折叠状态（PC 默认展开，移动端默认收起）
 const isMobile = ref(false)
 const collapsed = ref(false)
-const cardBodyStyle = computed(() =>
-  collapsed.value ? { padding: '0' } : {}
-)
+// 统一由 CSS 控制 Card 内边距，避免动画过程中布局突变
+const cardBodyStyle = computed(() => ({}))
 
 const toggleCollapsed = () => {
   collapsed.value = !collapsed.value
@@ -408,10 +408,14 @@ onUnmounted(() => {})
   overflow: hidden;
 }
 
+/* 筛选内容：PC 用自适应网格，移动端单列 */
 .filter-content {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
+  /* 间距自适应：不同屏宽下更均衡 */
+  gap: clamp(12px, 1.6vw, 20px);
+  align-items: start;
+  padding-bottom: 4px; /* 留一点空隙防止阴影被裁切 */
 }
 
 /* 展开/收起动画：使用 max-height + 透明度，模拟「缓慢缩小」 */
@@ -441,15 +445,125 @@ onUnmounted(() => {})
 }
 
 .filter-item label {
-  font-size: 14px;
-  color: var(--text-light);
-  font-weight: 500;
+  /* 标签美化：更紧凑、更清晰 */
+  font-size: 12px;
+  color: #909399;
+  font-weight: 600;
+  margin-bottom: 4px;
+  padding-left: 2px;
 }
 
+/* 状态按钮组：PC 保持同一行，移动端再用三列网格 */
 .status-group {
-  display: flex;
+  display: inline-flex;
   flex-wrap: nowrap;
   gap: 8px;
+  align-items: center;
+}
+
+/* ---------------- 动画与布局修复样式（去重后保留） ---------------- */
+
+/* 核心修复：确保内部内容在动画期间不发生位移，仅通过高度裁切控制显示 */
+.filter-collapse-wrapper {
+  overflow: hidden;
+  will-change: max-height;
+}
+
+/* 优化动画曲线：展开更顺滑，收起更干脆 */
+.filter-collapse-enter-active {
+  transition:
+    max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease;
+}
+
+.filter-collapse-leave-active {
+  transition:
+    max-height 0.3s cubic-bezier(0.4, 0, 1, 1),
+    opacity 0.2s ease;
+}
+
+/* 修复：进入开始和离开结束阶段强制高度为 0，避免中间状态抖动 */
+.filter-collapse-enter-from,
+.filter-collapse-leave-to {
+  max-height: 0 !important;
+  opacity: 0;
+}
+
+/* PC：让“状态”跨两列，避免 3 个按钮被挤换行导致错位 */
+@media (min-width: 769px) and (max-width: 1279px) {
+  .filter-item--status {
+    grid-column: span 2;
+  }
+}
+
+/* PC 大屏：空间充足时强制 6 列同一行，并压缩“是否官谷”列宽 */
+@media (min-width: 1280px) {
+  .filter-content {
+    /* 大屏：根据内容自适应列宽，避免状态与是否官谷之间拉得过开 */
+    grid-template-columns:
+      minmax(180px, 1fr)  /* IP作品 */
+      minmax(180px, 1fr)  /* 角色 */
+      minmax(180px, 1fr)  /* 品类 */
+      auto                /* 状态，仅按按钮内容占宽 */
+      minmax(120px, auto) /* 是否官谷（字少，窄一点） */
+      minmax(180px, 1fr); /* 位置 */
+    align-items: start;
+  }
+
+  /* 大屏时不需要跨列，保证同一行 */
+  .filter-item--status {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  /* 移动端状态组深度优化：三列等宽平铺，消除右侧留白 */
+  .status-group {
+    display: grid !important;
+    /* 核心：三列等宽，1:1:1 分配空间 */
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important; /* 统一间距 */
+    margin-left: 0 !important; /* 移除之前的左边距 */
+    width: 100%;
+  }
+
+  /* 移除 Element Plus 按钮组默认的连接效果，改为独立的圆角胶囊 */
+  :deep(.el-checkbox-button__inner) {
+    width: 100%;
+    padding: 10px 4px !important; /* 增加上下高度，方便手指点击 */
+    font-size: 13px !important;
+    border: 1px solid var(--el-border-color-light) !important;
+    border-radius: 8px !important; /* 全圆角胶囊感 */
+    background-color: #f9fafb !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease;
+  }
+
+  /* 选中状态的视觉增强 */
+  :deep(.el-checkbox-button.is-checked .el-checkbox-button__inner) {
+    background-color: rgba(var(--accent-purple-rgb, 103, 58, 183), 0.1) !important;
+    color: var(--accent-purple, #673ab7) !important;
+    border-color: var(--accent-purple, #673ab7) !important;
+    font-weight: bold;
+  }
+
+  /* 首尾也保持一致圆角，避免 Element 默认样式干扰 */
+  :deep(.el-checkbox-button:first-child .el-checkbox-button__inner),
+  :deep(.el-checkbox-button:last-child .el-checkbox-button__inner) {
+    border-radius: 8px !important;
+  }
+}
+
+/* 统一处理 Card 内边距，不使用动态 style 防止动画跳变 */
+:deep(.el-card__body) {
+  padding: 20px;
+  transition: padding 0.3s;
+}
+
+.filter-card--collapsed :deep(.el-card__body) {
+  /* 折叠时减少上下 padding，但不要瞬间归零，避免内容位置突变 */
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 @media (max-width: 768px) {
@@ -462,8 +576,9 @@ onUnmounted(() => {})
     gap: 16px;
   }
 
+  /* 与上方移动端状态组设置保持一致，避免被二次覆盖 */
   .status-group {
-    margin-left: 4px;
+    margin-left: 0 !important;
   }
 }
 
@@ -476,6 +591,25 @@ onUnmounted(() => {})
   background-color: var(--accent-purple);
   border-color: var(--accent-purple);
   color: #fff;
+}
+/* PC 端状态组微调：增加间隙，弱化“合并式”按钮组观感 */
+@media (min-width: 769px) {
+  .status-group {
+    gap: 12px;
+  }
+
+  :deep(.el-checkbox-button__inner) {
+    border: 1px solid #dcdfe6 !important;
+    border-radius: 6px !important; /* PC 端圆角稍尖一点，显得干练 */
+    margin-right: 0;
+  }
+}
+
+/* 统一输入框圆角 */
+:deep(.el-input__wrapper),
+:deep(.el-select__wrapper) {
+  border-radius: 8px !important;
+  background-color: #fff !important;
 }
 </style>
 
