@@ -75,6 +75,13 @@
       >
         <div
           class="context-menu-item"
+          :class="{ 'is-disabled': moveDisabledToTop }"
+          @click="handleMoveToTop"
+        >
+          置顶到本页顶部
+        </div>
+        <div
+          class="context-menu-item"
           :class="{ 'is-disabled': moveDisabledForward }"
           @click="handleMoveForward"
         >
@@ -155,6 +162,11 @@ const isLastItemLastPage = computed(() => {
   )
 })
 
+const isFirstItemInCurrentPage = computed(() => {
+  return contextMenuGoods.value && contextMenuIndex.value === 0
+})
+
+const moveDisabledToTop = computed(() => moveLoading.value || isFirstItemInCurrentPage.value)
 const moveDisabledForward = computed(() => moveLoading.value || isFirstItemFirstPage.value)
 const moveDisabledBackward = computed(() => moveLoading.value || isLastItemLastPage.value)
 
@@ -333,6 +345,49 @@ const handleMoveBackward = () => {
     return
   }
   handleMove('backward')
+}
+
+const handleMoveToTop = async () => {
+  if (!contextMenuGoods.value) return
+  if (moveLoading.value) return
+  if (isFirstItemInCurrentPage.value) {
+    ElMessage.info('当前商品已经是本页第一项')
+    return
+  }
+
+  const goods = contextMenuGoods.value
+  const idx = contextMenuIndex.value
+
+  if (idx === -1) {
+    ElMessage.warning('未找到当前卡片，无法置顶')
+    return
+  }
+
+  // 如果当前项不是第一项，移动到第一项之前
+  if (idx > 0) {
+    const firstItem = guziStore.guziList[0]
+    if (!firstItem) {
+      ElMessage.error('未找到本页第一项，无法置顶')
+      return
+    }
+
+    moveLoading.value = true
+    try {
+      await moveGoods(goods.id, {
+        anchor_id: firstItem.id,
+        position: 'before',
+      })
+      closeContextMenu()
+      ElMessage.success('已置顶到本页顶部')
+      await guziStore.searchGuziImmediate()
+    } catch (error: any) {
+      console.error('置顶失败:', error)
+      const detail = error?.response?.data?.detail || error?.message || '置顶失败'
+      ElMessage.error(detail)
+    } finally {
+      moveLoading.value = false
+    }
+  }
 }
 
 // 检测是否滚动到底部
