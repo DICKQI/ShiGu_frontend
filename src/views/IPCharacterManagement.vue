@@ -85,12 +85,14 @@
     <!-- 内容展示区 -->
     <div v-loading="loading" class="content-body">
       <!-- PC端：精致的表格 -->
+      <!-- 修改点：data绑定sortedIpList，添加sort-change事件 -->
       <div class="desktop-view">
         <el-table
-          :data="ipList"
+          :data="sortedIpList"
           border-radius="12"
           style="width: 100%"
           @expand-change="handleTableExpandChange"
+          @sort-change="handleSortChange"
         >
           <el-table-column type="expand" width="50">
             <template #default="{ row }">
@@ -141,12 +143,16 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="name" label="作品名称" min-width="180">
+          
+          <!-- 修改点：添加 sortable="custom" 和 prop -->
+          <el-table-column prop="name" label="作品名称" min-width="180" sortable="custom">
             <template #default="{ row }">
               <span class="table-name">{{ row.name }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="作品类型" width="120" align="center">
+
+          <!-- 修改点：添加 sortable="custom" 和 prop -->
+          <el-table-column prop="subject_type" label="作品类型" width="120" align="center" sortable="custom">
             <template #default="{ row }">
               <el-tag v-if="row.subject_type" size="small" :type="getSubjectTypeTagType(row.subject_type)">
                 {{ getSubjectTypeLabel(row.subject_type) }}
@@ -154,6 +160,7 @@
               <span v-else class="no-type">-</span>
             </template>
           </el-table-column>
+
           <el-table-column label="检索关键词" min-width="250">
             <template #default="{ row }">
               <div class="tag-group">
@@ -170,11 +177,14 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="角色数量" width="100" align="center">
+
+          <!-- 修改点：添加 sortable="custom" 和 prop="character_count" -->
+          <el-table-column prop="character_count" label="角色数量" width="120" align="center" sortable="custom">
             <template #default="{ row }">
               <span class="character-count">{{ row.character_count ?? (characterMap[row.id]?.length || 0) }}</span>
             </template>
           </el-table-column>
+          
           <el-table-column label="操作" width="150" align="right" fixed="right">
             <template #default="{ row }">
               <div class="action-inline">
@@ -214,8 +224,9 @@
         </div>
 
         <!-- 内容区域 -->
+        <!-- 修改点：遍历 sortedIpList，保持顺序一致 -->
         <div class="mobile-view-inner">
-          <div v-for="item in ipList" :key="item.id" class="ip-card-item">
+          <div v-for="item in sortedIpList" :key="item.id" class="ip-card-item">
             <div class="card-main" @click="toggleExpand(item.id)">
               <div class="card-info">
                 <div class="name-row">
@@ -822,6 +833,43 @@ const ipList = ref<IP[]>([])
 const characterMap = ref<Record<number, Character[]>>({})
 const characterLoadingMap = ref<Record<number, boolean>>({})
 const expandedIPs = ref<number[]>([])
+
+// 排序状态管理
+const sortState = ref<{ prop: string, order: string }>({ prop: '', order: '' })
+
+// 监听表格排序变化
+const handleSortChange = ({ prop, order }: { prop: string, order: string }) => {
+  sortState.value = { prop, order }
+}
+
+// 纯前端排序计算属性
+const sortedIpList = computed(() => {
+  const list = [...ipList.value]
+  if (!sortState.value.prop || !sortState.value.order) return list
+
+  return list.sort((a, b) => {
+    let result = 0
+    
+    // 根据作品名称排序 (支持中文拼音)
+    if (sortState.value.prop === 'name') {
+      result = a.name.localeCompare(b.name, 'zh-CN')
+    } 
+    // 根据作品类型排序 (数值)
+    else if (sortState.value.prop === 'subject_type') {
+      const typeA = a.subject_type || 0
+      const typeB = b.subject_type || 0
+      result = typeA - typeB
+    } 
+    // 根据角色数量排序
+    else if (sortState.value.prop === 'character_count') {
+      const countA = a.character_count ?? (characterMap.value[a.id]?.length || 0)
+      const countB = b.character_count ?? (characterMap.value[b.id]?.length || 0)
+      result = countA - countB
+    }
+
+    return sortState.value.order === 'descending' ? -result : result
+  })
+})
 
 // IP相关
 const ipDialogVisible = ref(false)
