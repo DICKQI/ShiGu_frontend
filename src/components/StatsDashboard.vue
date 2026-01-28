@@ -92,10 +92,11 @@
             placeholder="全部品类"
             clearable
             size="small"
+            check-strictly
           />
         </div>
 
-        <div class="stats-filter-item">
+        <div class="stats-filter-item stats-filter-item--range">
           <label>入手日期区间</label>
           <el-date-picker
             v-model="purchaseDateRange"
@@ -108,7 +109,7 @@
           />
         </div>
 
-        <div class="stats-filter-item">
+        <div class="stats-filter-item stats-filter-item--range">
           <label>录入日期区间</label>
           <el-date-picker
             v-model="createdDateRange"
@@ -125,63 +126,27 @@
 
     <div class="stats-content" v-loading="loading">
       <el-row :gutter="16" class="overview-row">
-        <el-col :xs="24" :sm="12" :md="6">
+        <el-col :xs="24" :sm="12" :md="8">
           <el-card class="overview-card" shadow="hover">
             <div class="overview-label">谷子件数</div>
             <div class="overview-value">{{ overview?.goods_count ?? 0 }}</div>
             <div class="overview-sub">不同 Asset 记录数</div>
           </el-card>
         </el-col>
-        <el-col :xs="24" :sm="12" :md="6">
+        <el-col :xs="24" :sm="12" :md="8">
           <el-card class="overview-card" shadow="hover">
             <div class="overview-label">总数量</div>
             <div class="overview-value">{{ overview?.quantity_sum ?? 0 }}</div>
             <div class="overview-sub">合计 quantity</div>
           </el-card>
         </el-col>
-        <el-col :xs="24" :sm="12" :md="6">
+        <el-col :xs="24" :sm="12" :md="8">
           <el-card class="overview-card" shadow="hover">
             <div class="overview-label">估算总金额</div>
             <div class="overview-value">
               ¥{{ formattedValueSum }}
             </div>
             <div class="overview-sub">price×quantity 汇总</div>
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :sm="12" :md="6">
-          <el-card class="overview-card" shadow="hover">
-            <div class="overview-label">数据完整度</div>
-            <div class="overview-progress-group" v-if="overview">
-              <div class="progress-item">
-                <span>价格</span>
-                <el-progress
-                  :percentage="completionRate(overview.with_price_count)"
-                  :stroke-width="8"
-                  :show-text="false"
-                />
-              </div>
-              <div class="progress-item">
-                <span>入手日期</span>
-                <el-progress
-                  :percentage="
-                    completionRate(overview.with_purchase_date_count)
-                  "
-                  :stroke-width="8"
-                  :show-text="false"
-                  status="success"
-                />
-              </div>
-              <div class="progress-item">
-                <span>位置</span>
-                <el-progress
-                  :percentage="completionRate(overview.with_location_count)"
-                  :stroke-width="8"
-                  :show-text="false"
-                  status="warning"
-                />
-              </div>
-            </div>
-            <div v-else class="overview-sub">暂无统计数据</div>
           </el-card>
         </el-col>
       </el-row>
@@ -218,17 +183,6 @@
           <el-card shadow="hover" class="chart-card">
             <div class="chart-title">品类 Top {{ filters.top }}</div>
             <div ref="categoryTopChartRef" class="chart-container" />
-          </el-card>
-        </el-col>
-      </el-row>
-
-      <el-row :gutter="16" class="charts-row">
-        <el-col :xs="24">
-          <el-card shadow="hover" class="chart-card">
-            <div class="chart-title">
-              入手趋势（{{ groupByLabel }}）
-            </div>
-            <div ref="purchaseTrendChartRef" class="chart-container chart-container--wide" />
           </el-card>
         </el-col>
       </el-row>
@@ -280,27 +234,11 @@ const formattedValueSum = computed(() => {
   return num.toFixed(2)
 })
 
-const completionRate = (filledCount: number) => {
-  if (!overview.value || !overview.value.goods_count) return 0
-  return Math.round((filledCount / overview.value.goods_count) * 100)
-}
-
 const groupByOptions = [
   { label: '按月', value: 'month' },
   { label: '按周', value: 'week' },
   { label: '按日', value: 'day' },
 ] as const
-
-const groupByLabel = computed(() => {
-  switch (filters.group_by) {
-    case 'week':
-      return '按周'
-    case 'day':
-      return '按日'
-    default:
-      return '按月'
-  }
-})
 
 // 基础数据（IP / 品类树 / 位置树）
 const ipOptions = ref<IP[]>([])
@@ -355,7 +293,6 @@ const officialChartRef = ref<HTMLDivElement | null>(null)
 const subjectChartRef = ref<HTMLDivElement | null>(null)
 const ipTopChartRef = ref<HTMLDivElement | null>(null)
 const categoryTopChartRef = ref<HTMLDivElement | null>(null)
-const purchaseTrendChartRef = ref<HTMLDivElement | null>(null)
 
 const chartInstances: echarts.ECharts[] = []
 
@@ -383,7 +320,7 @@ const disposeCharts = () => {
 const updateCharts = () => {
   if (!statsData.value) return
 
-  const { distributions, trends } = statsData.value
+  const { distributions } = statsData.value
 
   const theme = {
     text: getCssVar('--text-dark', '#303133'),
@@ -571,48 +508,6 @@ const updateCharts = () => {
     })
   }
 
-  // 入手趋势折线图
-  const purchaseTrendChart = initChart(purchaseTrendChartRef.value)
-  if (purchaseTrendChart) {
-    const buckets = trends.purchase_date || []
-    purchaseTrendChart.setOption({
-      color: palette,
-      textStyle: baseTextStyle,
-      tooltip: { ...baseTooltip, trigger: 'axis' },
-      legend: {
-        top: 0,
-        right: 0,
-        textStyle: { color: theme.textSub },
-      },
-      grid: { left: 40, right: 22, top: 40, bottom: 26, containLabel: true },
-      xAxis: {
-        type: 'category',
-        data: buckets.map((b) => b.bucket),
-        axisLine: { lineStyle: { color: theme.grid } },
-        axisTick: { alignWithLabel: true },
-        axisLabel: { color: theme.textSub },
-      },
-      yAxis: {
-        type: 'value',
-        axisLine: { show: false },
-        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.05)' } },
-        axisLabel: { color: theme.textSub },
-      },
-      series: [
-        {
-          name: '件数',
-          type: 'line',
-          smooth: true,
-          data: buckets.map((b) => b.goods_count),
-          symbol: 'circle',
-          symbolSize: 6,
-          lineStyle: { width: 3 },
-          areaStyle: { opacity: 0.08 },
-        },
-      ],
-    })
-  }
-
   chartInstances.forEach((c) => c.resize())
 }
 
@@ -722,6 +617,43 @@ watch(
     })
   },
 )
+
+// 筛选条件变更时自动刷新数据（带简单防抖）
+let autoFetchTimer: number | null = null
+const triggerAutoFetch = () => {
+  if (loading.value) return
+  if (autoFetchTimer !== null) {
+    window.clearTimeout(autoFetchTimer)
+  }
+  autoFetchTimer = window.setTimeout(() => {
+    autoFetchTimer = null
+    fetchStats()
+  }, 300)
+}
+
+watch(
+  () => [
+    filters.group_by,
+    filters.top,
+    filters.ip,
+    filters.category,
+    filters.is_official,
+  ],
+  () => {
+    triggerAutoFetch()
+  },
+)
+
+watch(
+  selectedStatuses,
+  () => {
+    triggerAutoFetch()
+  },
+  { deep: true },
+)
+
+watch(purchaseDateRange, () => triggerAutoFetch())
+watch(createdDateRange, () => triggerAutoFetch())
 </script>
 
 <style scoped>
@@ -762,6 +694,10 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.stats-filter-item--range {
+  grid-column: span 2;
 }
 
 .stats-filter-item label {
