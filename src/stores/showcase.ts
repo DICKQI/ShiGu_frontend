@@ -61,7 +61,20 @@ export const useShowcaseStore = defineStore('showcase', () => {
       const page_size = opts?.page_size ?? pagination.value.page_size
       const data = await getShowcaseList({ page, page_size })
       pagination.value = data
-      list.value = data.results || []
+      const results = data.results || []
+      list.value = results
+
+      // 方案 B：列表接口已下发 preview_photos，直接填充缓存（包含空数组，避免再去拉详情）
+      const map: Record<string, string[]> = {}
+      for (const s of results) {
+        if (!s?.id) continue
+        const photos = (s.preview_photos || []).filter(Boolean).slice(0, 4)
+        map[s.id] = photos
+      }
+      previewPhotosByShowcaseId.value = {
+        ...previewPhotosByShowcaseId.value,
+        ...map,
+      }
     } catch (e: any) {
       error.value = e?.message || '加载展柜列表失败'
       list.value = []
@@ -86,6 +99,52 @@ export const useShowcaseStore = defineStore('showcase', () => {
     } finally {
       detailLoading.value = false
     }
+  }
+
+  // ===== 列表页：展柜预览图缓存（前四张 main_photo） =====
+  const previewPhotosByShowcaseId = ref<Record<string, string[]>>({})
+  const previewLoadingById = ref<Record<string, boolean>>({})
+
+  const getPreviewPhotos = (showcaseId: string) => previewPhotosByShowcaseId.value[showcaseId] || []
+  const isPreviewLoading = (showcaseId: string) => !!previewLoadingById.value[showcaseId]
+
+  const fetchPreviewPhotos = async (showcaseIds: string[], opts?: { concurrency?: number; force?: boolean }) => {
+    const concurrency = Math.max(1, opts?.concurrency ?? 6)
+    const force = !!opts?.force
+    const uniqIds = Array.from(new Set(showcaseIds)).filter(Boolean)
+
+    // 只请求“还没有缓存”的，除非 force
+    const queue = uniqIds.filter((id) => force || !(id in previewPhotosByShowcaseId.value))
+    if (queue.length === 0) return
+
+    let idx = 0
+    const worker = async () => {
+      while (idx < queue.length) {
+        const current = queue[idx++]
+        if (!current) continue
+        if (previewLoadingById.value[current]) continue
+        previewLoadingById.value = { ...previewLoadingById.value, [current]: true }
+        try {
+          const detail = await getShowcaseDetail(current)
+          const photos =
+            (detail.showcase_goods || [])
+              .slice()
+              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+              .map((x) => x.goods?.main_photo || '')
+              .filter((x) => !!x)
+              .slice(0, 4) || []
+          previewPhotosByShowcaseId.value = { ...previewPhotosByShowcaseId.value, [current]: photos }
+        } catch {
+          // 失败时也写入空数组，避免列表反复请求导致抖动（可通过 force 手动刷新）
+          previewPhotosByShowcaseId.value = { ...previewPhotosByShowcaseId.value, [current]: [] }
+        } finally {
+          const { [current]: _, ...rest } = previewLoadingById.value
+          previewLoadingById.value = rest
+        }
+      }
+    }
+
+    await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, () => worker()))
   }
 
   const setActive = async (id: string) => {
@@ -251,6 +310,11 @@ export const useShowcaseStore = defineStore('showcase', () => {
     activeShowcase,
     showcaseGoods,
     sortedShowcaseGoods,
+    previewPhotosByShowcaseId,
+    previewLoadingById,
+    getPreviewPhotos,
+    isPreviewLoading,
+    fetchPreviewPhotos,
     fetchList,
     fetchDetail,
     setActive,

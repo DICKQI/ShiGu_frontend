@@ -288,6 +288,12 @@ export interface Showcase {
   name: string
   description?: string | null
   cover_image?: string | null
+  /**
+   * 展柜列表接口会返回该展柜下前四个谷子的主图 URL（最多 4 个）
+   * - 后端字段名：preview_photos
+   * - 可能为空数组 []
+   */
+  preview_photos?: string[]
   order?: number
   is_public?: boolean
   created_at?: string

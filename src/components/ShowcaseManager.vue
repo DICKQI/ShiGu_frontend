@@ -3,9 +3,9 @@
     <!-- 背景装饰 -->
     <div class="bg-decoration"></div>
 
-    <div class="layout" :class="{ 'mobile-detail-active': isMobile && showcaseStore.activeShowcaseId }">
-      <!-- 左侧：展柜列表 -->
-      <div class="panel-container left-panel" v-show="!isMobile || !showcaseStore.activeShowcaseId">
+    <div class="layout single-page">
+      <!-- 列表页 -->
+      <div v-if="viewMode === 'list'" class="panel-container full-panel">
         <el-card shadow="never" class="glass-card adaptive-card">
           <template #header>
             <div class="panel-header">
@@ -19,132 +19,39 @@
           </template>
 
           <div class="scroll-content">
-            <div v-if="showcaseStore.error && showcaseStore.list.length === 0" class="state-box">
-              <el-alert :title="showcaseStore.error" type="error" :closable="false" show-icon />
-            </div>
-
-            <div v-else-if="showcaseStore.listLoading && showcaseStore.list.length === 0" class="state-box">
-              <el-skeleton :rows="6" animated />
-            </div>
-
-            <div v-else-if="showcaseStore.list.length === 0" class="state-box empty">
-              <el-empty description="暂无展柜，打造你的第一个痛柜吧！" image-size="100" />
-            </div>
-
-            <div v-else class="showcase-list">
-              <div
-                v-for="s in showcaseStore.list"
-                :key="s.id"
-                class="showcase-item"
-                :class="{ active: s.id === showcaseStore.activeShowcaseId }"
-                @click="handleSelectShowcase(s.id)"
-                @contextmenu.prevent.stop="openShowcaseContextMenu(s.id, $event)"
-              >
-                <div class="showcase-cover">
-                  <el-image
-                    v-if="s.cover_image"
-                    :src="s.cover_image"
-                    fit="cover"
-                    class="cover-img"
-                    loading="lazy"
-                  />
-                  <div v-else class="cover-placeholder">
-                    <el-icon><Picture /></el-icon>
-                  </div>
-                </div>
-                <div class="showcase-info">
-                  <div class="showcase-name text-truncate">{{ s.name }}</div>
-                  <div class="showcase-desc text-truncate">{{ s.description || '暂无描述' }}</div>
-                </div>
-                <el-icon v-if="s.id === showcaseStore.activeShowcaseId" class="active-icon"><ArrowRight /></el-icon>
-              </div>
-            </div>
-
-            <div class="pager-container">
-              <el-pagination
-                v-if="showcaseStore.pagination.count > 0"
-                v-model:current-page="showcaseCurrentPage"
-                :page-size="showcaseStore.pagination.page_size"
-                :total="showcaseStore.pagination.count"
-                small
-                layout="prev, pager, next"
-                background
-              />
-            </div>
+            <ShowcaseListView
+              :showcases="showcaseStore.list"
+              :loading="showcaseStore.listLoading"
+              :error="showcaseStore.error"
+              :pagination="{
+                total: showcaseStore.pagination.count,
+                page: showcaseStore.pagination.page,
+                pageSize: showcaseStore.pagination.page_size,
+              }"
+              :get-preview-photos="showcaseStore.getPreviewPhotos"
+              :is-preview-loading="showcaseStore.isPreviewLoading"
+              @select="handleEnterShowcaseDetail"
+              @context-menu="openShowcaseContextMenu"
+              @page-change="handleListPageChange"
+            />
           </div>
         </el-card>
       </div>
 
-      <!-- 右侧：展柜详情 -->
-      <div class="panel-container right-panel" v-show="!isMobile || showcaseStore.activeShowcaseId">
+      <!-- 详情页 -->
+      <div v-else class="panel-container full-panel">
         <el-card shadow="never" class="glass-card adaptive-card detail-card">
-          <template #header>
-            <div class="panel-header detail-header">
-              <div class="header-left">
-                <el-button v-if="isMobile" link @click="backToList" class="back-btn">
-                  <el-icon><ArrowLeft /></el-icon>
-                </el-button>
-                <div class="panel-title">展柜详情</div>
-              </div>
-            </div>
-          </template>
-
-          <div v-if="!showcaseStore.activeShowcaseId && !isMobile" class="detail-empty-state">
-            <el-empty description="请从左侧选择一个展柜开始布置" />
-          </div>
-
-          <div v-else-if="showcaseStore.detailLoading && !showcaseStore.activeShowcase" class="detail-loading">
-            <el-skeleton :rows="10" animated />
-          </div>
-
-          <div v-else-if="showcaseStore.activeShowcase" class="detail-content scroll-content">
-            <div class="detail-info-banner">
-              <div class="info-text">
-                <h2 class="detail-name">{{ showcaseStore.activeShowcase.name }}</h2>
-                <p class="detail-desc">{{ showcaseStore.activeShowcase.description || '这个展柜还没有描述...' }}</p>
-                <div class="detail-tags">
-                  <el-tag size="small" :type="showcaseStore.activeShowcase.is_public ? 'success' : 'info'" effect="light" round>
-                    {{ showcaseStore.activeShowcase.is_public ? '公开展示' : '私密收藏' }}
-                  </el-tag>
-                </div>
-              </div>
-              <div class="info-action">
-                <el-button type="primary" class="btn-accent add-goods-btn" @click="openAddGoods">
-                  <el-icon class="el-icon--left"><Goods /></el-icon> 添加谷子
-                </el-button>
-              </div>
-            </div>
-
-            <el-divider class="custom-divider" />
-
-            <div class="goods-section">
-              <div class="section-header">
-                <span class="section-title">收纳物品</span>
-                <span class="section-count">{{ showcaseStore.sortedShowcaseGoods.length }} 件</span>
-              </div>
-
-              <div v-if="showcaseStore.sortedShowcaseGoods.length === 0" class="goods-empty">
-                <el-empty description="这里空空如也，快去添加心爱的谷子吧！" image-size="80" />
-              </div>
-
-              <div v-else class="goods-grid">
-                <div
-                  v-for="item in showcaseStore.sortedShowcaseGoods"
-                  :key="item.id"
-                  class="goods-wrapper"
-                  @contextmenu.prevent.stop="openGoodsContextMenuFromDom(item.goods.id, $event)"
-                >
-                  <GoodsCard
-                    :goods="item.goods"
-                    :show-menu="false"
-                    class="mini-goods-card"
-                    @click="handleOpenGoodsDetail"
-                    @location-click="noop"
-                    @context-menu="openGoodsContextMenu"
-                  />
-                </div>
-              </div>
-            </div>
+          <div class="scroll-content">
+            <ShowcaseDetailView
+              :loading="showcaseStore.detailLoading"
+              :showcase="showcaseStore.activeShowcase"
+              :goods="showcaseStore.sortedShowcaseGoods"
+              @back="backToList"
+              @add-goods="openAddGoods"
+              @open-goods="handleOpenGoodsDetail"
+              @goods-context-menu="openGoodsContextMenu"
+              @goods-context-menu-from-dom="openGoodsContextMenuFromDom"
+            />
           </div>
         </el-card>
       </div>
@@ -314,7 +221,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
 import {
   Plus,
@@ -331,6 +238,8 @@ import {
 } from '@element-plus/icons-vue'
 import GoodsCard from '@/components/GoodsCard.vue'
 import GoodsDrawer from '@/components/GoodsDrawer.vue'
+import ShowcaseListView from '@/components/showcase/ShowcaseListView.vue'
+import ShowcaseDetailView from '@/components/showcase/ShowcaseDetailView.vue'
 import { useShowcaseStore } from '@/stores/showcase'
 import { getGoodsList } from '@/api/goods'
 import { uploadShowcaseCoverImage } from '@/api/showcase'
@@ -344,6 +253,7 @@ onMounted(() => window.addEventListener('resize', handleResize))
 onUnmounted(() => window.removeEventListener('resize', handleResize))
 
 const showcaseStore = useShowcaseStore()
+const viewMode = ref<'list' | 'detail'>('list')
 
 const showCurrentPage = computed({
   get: () => showcaseStore.pagination.page,
@@ -352,9 +262,15 @@ const showCurrentPage = computed({
   },
 })
 const showcaseCurrentPage = showCurrentPage
+const handleListPageChange = (page: number) => {
+  // computed ref 在 template 里有自动解包，但这里显式写，避免歧义
+  showcaseCurrentPage.value = page
+}
 
 const backToList = () => {
   showcaseStore.activeShowcaseId = null
+  showcaseStore.activeShowcase = null
+  viewMode.value = 'list'
 }
 
 const goodsDrawerVisible = ref(false)
@@ -584,6 +500,11 @@ const handleSelectShowcase = async (id: string) => {
   await showcaseStore.setActive(id)
 }
 
+const handleEnterShowcaseDetail = async (id: string) => {
+  await handleSelectShowcase(id)
+  viewMode.value = 'detail'
+}
+
 const addDrawerVisible = ref(false)
 const addSearch = ref('')
 const addLoading = ref(false)
@@ -715,8 +636,18 @@ const ctxDeleteShowcase = async () => {
 onMounted(async () => {
   showcaseStore.activeShowcaseId = null
   showcaseStore.activeShowcase = null
+  viewMode.value = 'list'
   await showcaseStore.fetchList()
 })
+
+watch(
+  () => showcaseStore.list.map((x) => x.id).join(','),
+  () => {
+    // 列表变更（首次加载/翻页/创建/删除刷新）后拉取预览图（前四张谷子主图）
+    showcaseStore.fetchPreviewPhotos(showcaseStore.list.map((x) => x.id))
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>
@@ -773,10 +704,18 @@ onMounted(async () => {
   z-index: 1;
 }
 
+.layout.single-page {
+  display: block;
+}
+
 .panel-container {
   display: flex;
   flex-direction: column;
   align-self: flex-start;
+}
+
+.full-panel {
+  width: 100%;
 }
 
 .left-panel {
@@ -1210,7 +1149,8 @@ onMounted(async () => {
   }
 
   .left-panel,
-  .right-panel {
+  .right-panel,
+  .full-panel {
     width: 100%;
     height: 100%;
     position: absolute;
